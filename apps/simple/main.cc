@@ -45,6 +45,10 @@ class EpaperDevice {
     // Paint_SelectImage(image_buffer_.data());
     // Paint_Clear(EPD_7IN3E_WHITE);
     // GUI_ReadBmp_RGB_6Color("./pic/output.bmp", 0, 0);
+    int counter = 0;
+    for (auto &&i : image_buffer_) {
+      i = static_cast<uint8_t>(counter++ % 6);  // Fill with some pattern
+    }
     Epaper::EPD_7IN3E_Display(image_buffer_.data());
   }
 };
