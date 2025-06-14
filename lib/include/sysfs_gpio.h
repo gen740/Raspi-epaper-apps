@@ -28,10 +28,13 @@
 # THE SOFTWARE.
 #
 ******************************************************************************/
-#ifndef __SYSFS_GPIO_
-#define __SYSFS_GPIO_
+#pragma once
 
 #include <stdio.h>
+
+#if __cplusplus
+extern "C" {
+#endif
 
 #define IN 0
 #define OUT 1
@@ -81,4 +84,6 @@ int SYSFS_GPIO_Direction(int Pin, int Dir);
 int SYSFS_GPIO_Read(int Pin);
 int SYSFS_GPIO_Write(int Pin, int value);
 
+#if __cplusplus
+}
 #endif

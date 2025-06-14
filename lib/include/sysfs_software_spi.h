@@ -28,12 +28,15 @@
 # THE SOFTWARE.
 #
 ******************************************************************************/
-#ifndef __SYSFS_SOFTWARE_SPI_
-#define __SYSFS_SOFTWARE_SPI_
+#pragma once
 
 #include "sysfs_gpio.h"
 #include <stdint.h>
 #include <stdio.h>
+
+#if __cplusplus
+extern "C" {
+#endif
 
 #define SYSFS_SOFTWARE_SPI_DEBUG 1
 #if SYSFS_SOFTWARE_SPI_DEBUG
@@ -109,4 +112,6 @@ void SYSFS_software_spi_setDataMode(uint8_t mode);
 void SYSFS_software_spi_setClockDivider(uint8_t div);
 uint8_t SYSFS_software_spi_transfer(uint8_t value);
 
+#if __cplusplus
+}
 #endif

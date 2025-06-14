@@ -42,8 +42,7 @@
 # THE SOFTWARE.
 #
 ******************************************************************************/
-#ifndef __GUI_BMPFILE_H
-#define __GUI_BMPFILE_H
+#pragma once
 
 #include <fcntl.h>
 #include <stdint.h>
@@ -51,6 +50,10 @@
 #include <unistd.h>
 
 #include "DEV_Config.h"
+
+#if __cplusplus
+extern "C" {
+#endif
 
 /*Bitmap file header   14bit*/
 typedef struct BMP_FILE_HEADER {
@@ -93,4 +96,7 @@ UBYTE GUI_ReadBmp_16Gray(const char *path, UWORD Xstart, UWORD Ystart);
 UBYTE GUI_ReadBmp_RGB_4Color(const char *path, UWORD Xstart, UWORD Ystart);
 UBYTE GUI_ReadBmp_RGB_6Color(const char *path, UWORD Xstart, UWORD Ystart);
 UBYTE GUI_ReadBmp_RGB_7Color(const char *path, UWORD Xstart, UWORD Ystart);
+
+#if __cplusplus
+}
 #endif

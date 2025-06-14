@@ -28,11 +28,14 @@
 # THE SOFTWARE.
 #
 ************************D******************************************************/
-#ifndef __GPIOD_
-#define __GPIOD_
+#pragma once
 
 #include <gpiod.h>
 #include <stdio.h>
+
+#if __cplusplus
+extern "C" {
+#endif
 
 #define GPIOD_IN 0
 #define GPIOD_OUT 1
@@ -85,4 +88,6 @@ int GPIOD_Direction(int Pin, int Dir);
 int GPIOD_Read(int Pin);
 int GPIOD_Write(int Pin, int value);
 
+#if __cplusplus
+}
 #endif

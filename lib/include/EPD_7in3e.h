@@ -28,10 +28,13 @@
 # THE SOFTWARE.
 #
 ******************************************************************************/
-#ifndef __EPD_7IN3E_H_
-#define __EPD_7IN3E_H_
+#pragma once
 
 #include "DEV_Config.h"
+
+#if __cplusplus
+extern "C" {
+#endif
 
 // Display resolution
 #define EPD_7IN3E_WIDTH 800
@@ -56,4 +59,6 @@ void EPD_7IN3E_Show(void);
 void EPD_7IN3E_Display(UBYTE *Image);
 void EPD_7IN3E_Sleep(void);
 
+#if __cplusplus
+}
 #endif

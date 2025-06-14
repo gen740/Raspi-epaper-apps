@@ -19,7 +19,15 @@
         { pkgs, ... }:
         {
           devShells.default = pkgs.mkShell {
-            packages = [ ];
+            packages = [
+
+              pkgs.libgpiod_1
+              pkgs.cmake
+              pkgs.ninja
+              pkgs.llvmPackages_20.clang-tools
+              pkgs.cmake-format
+              pkgs.cmake-language-server
+            ];
           };
 
           packages.default = pkgs.stdenv.mkDerivation {
@@ -30,10 +38,6 @@
               pkgs.cmake
               pkgs.ninja
             ];
-            # installPhase = ''
-            #   mkdir -p $out/bin
-            #   cp -r ./epd $out/bin/epd
-            # '';
           };
         };
     };

@@ -32,10 +32,13 @@
 #
 
 ******************************************************************************/
-#ifndef __DEBUG_H
-#define __DEBUG_H
+#pragma once
 
 #include <stdio.h>
+
+#if __cplusplus
+extern "C" {
+#endif
 
 #if DEBUG
 #define Debug(__info, ...) printf("Debug: " __info, ##__VA_ARGS__)
@@ -43,4 +46,6 @@
 #define Debug(__info, ...)
 #endif
 
+#if __cplusplus
+}
 #endif

@@ -67,8 +67,11 @@
  * THE SOFTWARE.
  *
  ******************************************************************************/
-#ifndef __GUI_PAINT_H
-#define __GUI_PAINT_H
+#pragma once
+
+#if __cplusplus
+extern "C" {
+#endif
 
 #include "DEV_Config.h"
 #include "fonts.h"
@@ -225,4 +228,6 @@ void Paint_DrawTime(UWORD Xstart, UWORD Ystart, PAINT_TIME *pTime, sFONT *Font,
 // pic
 void Paint_DrawBitMap(const unsigned char *image_buffer);
 
+#if __cplusplus
+}
 #endif

@@ -28,10 +28,13 @@
 # THE SOFTWARE.
 #
 ******************************************************************************/
-#ifndef __DEV_HARDWARE_SPI_
-#define __DEV_HARDWARE_SPI_
+#pragma once
 
 #include <stdint.h>
+
+#if __cplusplus
+extern "C" {
+#endif
 
 #define DEV_HARDWARE_SPI_DEBUG 0
 #if DEV_HARDWARE_SPI_DEBUG
@@ -104,4 +107,6 @@ int DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect CS_Mode);
 int DEV_HARDWARE_SPI_CSEN(SPICSEN EN);
 int DEV_HARDWARE_SPI_Mode(SPIMode mode);
 
+#if __cplusplus
+}
 #endif

@@ -37,20 +37,19 @@
  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __FONTS_H
-#define __FONTS_H
+#pragma once
 
 /*×î´ó×ÖÌåÎ¢ÈíÑÅºÚ24 (32x41) */
 #define MAX_HEIGHT_FONT 41
 #define MAX_WIDTH_FONT 32
 #define OFFSET_BITMAP
 
+/* Includes ------------------------------------------------------------------*/
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Includes ------------------------------------------------------------------*/
-#include <stdint.h>
 
 // ASCII
 typedef struct _tFont {
@@ -87,7 +86,5 @@ extern cFONT Font24CN;
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __FONTS_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
