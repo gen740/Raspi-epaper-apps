@@ -43,6 +43,7 @@ class Epaper {
 
   auto test() -> void {
     std::println("show bmp1-----------------");
+    Paint_SetScale(6);
     Paint_SelectImage(image_cache_.data());
     Paint_Clear(EPD_7IN3E_WHITE);
     GUI_ReadBmp_RGB_6Color("./pic/7in3e.bmp", 0, 0);
