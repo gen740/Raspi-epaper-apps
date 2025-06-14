@@ -4,10 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    mynixpkgs = {
-      url = "git+ssh://github.com/gen740/mynixpkgs";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -20,17 +16,22 @@
         {
           devShells.default = pkgs.mkShell {
             packages = [
-
               pkgs.libgpiod_1
               pkgs.cmake
               pkgs.ninja
               pkgs.llvmPackages_20.clang-tools
+              pkgs.llvmPackages_20.libcxxClang
               pkgs.cmake-format
               pkgs.cmake-language-server
             ];
+            shellHook = ''
+              export CC="${pkgs.llvmPackages_20.libcxxClang}/bin/clang"
+              export CXX="${pkgs.llvmPackages_20.libcxxClang}/bin/clang++"
+            '';
+
           };
 
-          packages.default = pkgs.stdenv.mkDerivation {
+          packages.default = pkgs.llvmPackages_20.libcxxStdenv.mkDerivation {
             name = "demo";
             src = ./.;
             buildInputs = [
@@ -38,6 +39,7 @@
               pkgs.cmake
               pkgs.ninja
             ];
+
           };
         };
     };
