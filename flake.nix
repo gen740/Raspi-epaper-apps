@@ -29,7 +29,7 @@
               pkgs.llvmPackages_20.libcxxClang
               pkgs.cmake-format
               pkgs.cmake-language-server
-            ] ++ (if pkgs.stdenv.isLinux then [ pkgs.libgpiod_1 ] else [ ]);
+            ] ++ (if pkgs.stdenv.isLinux then [ pkgs.libgpiod ] else [ ]);
             shellHook = ''
               export CC="${pkgs.llvmPackages_20.libcxxClang}/bin/clang"
               export CXX="${pkgs.llvmPackages_20.libcxxClang}/bin/clang++"
@@ -37,13 +37,16 @@
 
           };
 
-          packages.default = pkgs.llvmPackages_20.libcxxStdenv.mkDerivation {
+          packages.default = pkgs.llvmPackages_20.stdenv.mkDerivation {
             name = "demo";
             src = ./.;
-            buildInputs = [
-              pkgs.libgpiod_1
+            nativeBuildInputs = [
               pkgs.cmake
               pkgs.ninja
+              pkgs.pkg-config
+            ];
+            buildInputs = [
+              pkgs.libgpiod
             ];
 
           };

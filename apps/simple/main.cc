@@ -4,59 +4,55 @@
 #include <thread>
 #include <vector>
 
-#include "DEV_Config.h"
-#include "EPD_7in3e.h"
-#include "GUI_BMPfile.h"
-#include "GUI_Paint.h"
+#include "Epaper.hh"
 
-class Epaper {
+class EpaperDevice {
  private:
-  Epaper() {
-    if (DEV_Module_Init() != 0) {
+  EpaperDevice() {
+    if (Epaper::DEV_Module_Init() != 0) {
       throw std::runtime_error("Could not initialize the device");
     }
     std::println("e-Paper Init and Clear...");
-    EPD_7IN3E_Init();
-    EPD_7IN3E_Clear(EPD_7IN3E_WHITE);  // WHITE
-    DEV_Delay_ms(1000);
+    Epaper::EPD_7IN3E_Init();
+    Epaper::EPD_7IN3E_Clear(0x01);  // WHITE
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     image_buffer_.resize(static_cast<std::size_t>(2 * 480 * 800));
-    Paint_NewImage(image_buffer_.data(), EPD_7IN3E_WIDTH, EPD_7IN3E_HEIGHT, 0, EPD_7IN3E_WHITE);
+    // Paint_NewImage(image_buffer_.data(), EPD_7IN3E_WIDTH, EPD_7IN3E_HEIGHT, 0, EPD_7IN3E_WHITE);
   }
 
-  ~Epaper() {
+  ~EpaperDevice() {
     std::println("Clear...");
-    EPD_7IN3E_Clear(EPD_7IN3E_WHITE);
-    EPD_7IN3E_Sleep();
-    DEV_Delay_ms(2000);  // important, at least 2s
-    DEV_Module_Exit();
+    Epaper::EPD_7IN3E_Clear(0x01);
+    Epaper::EPD_7IN3E_Sleep();
+    std::println("e-Paper Sleep...");
+    Epaper::DEV_Module_Exit();
   }
 
   std::vector<uint8_t> image_buffer_;
 
  public:
-  Epaper(const Epaper &) = delete;
-  auto operator=(const Epaper &) -> Epaper & = delete;
+  EpaperDevice(const EpaperDevice &) = delete;
+  auto operator=(const EpaperDevice &) -> EpaperDevice & = delete;
 
-  static auto get() -> Epaper & {
-    static Epaper instance_;
+  static auto get() -> EpaperDevice & {
+    static EpaperDevice instance_;
     return instance_;
   }
 
   auto test() -> void {
-    std::println("show bmp1-----------------");
-    Paint_SetScale(6);
-    Paint_SelectImage(image_buffer_.data());
-    Paint_Clear(EPD_7IN3E_WHITE);
-    GUI_ReadBmp_RGB_6Color("./pic/output.bmp", 0, 0);
-
-    EPD_7IN3E_Display(image_buffer_.data());
+    // std::println("show bmp1-----------------");
+    // Paint_SetScale(6);
+    // Paint_SelectImage(image_buffer_.data());
+    // Paint_Clear(EPD_7IN3E_WHITE);
+    // GUI_ReadBmp_RGB_6Color("./pic/output.bmp", 0, 0);
+    Epaper::EPD_7IN3E_Display(image_buffer_.data());
   }
 };
 
 auto main() -> int {
   try {
     std::println("Simple test Start!!");
-    auto &epaper = Epaper::get();
+    auto &epaper = EpaperDevice::get();
     epaper.test();
     std::this_thread::sleep_for(std::chrono::seconds(10));
   } catch (const std::exception &e) {
