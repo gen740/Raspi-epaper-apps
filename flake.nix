@@ -27,11 +27,13 @@
             src = ./.;
             buildInputs = [
               pkgs.libgpiod_1
+              pkgs.cmake
+              pkgs.ninja
             ];
-            installPhase = ''
-              mkdir -p $out/bin
-              cp -r ./epd $out/bin/epd
-            '';
+            # installPhase = ''
+            #   mkdir -p $out/bin
+            #   cp -r ./epd $out/bin/epd
+            # '';
           };
         };
     };
