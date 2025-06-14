@@ -19,7 +19,8 @@ class Epaper {
     EPD_7IN3E_Init();
     EPD_7IN3E_Clear(EPD_7IN3E_WHITE);  // WHITE
     DEV_Delay_ms(1000);
-    image_cache_.resize(static_cast<std::size_t>(4 * 480 * 800));
+    image_buffer_.resize(static_cast<std::size_t>(2 * 480 * 800));
+    Paint_NewImage(image_buffer_.data(), EPD_7IN3E_WIDTH, EPD_7IN3E_HEIGHT, 0, EPD_7IN3E_WHITE);
   }
 
   ~Epaper() {
@@ -30,7 +31,7 @@ class Epaper {
     DEV_Module_Exit();
   }
 
-  std::vector<uint8_t> image_cache_;
+  std::vector<uint8_t> image_buffer_;
 
  public:
   Epaper(const Epaper &) = delete;
@@ -44,10 +45,11 @@ class Epaper {
   auto test() -> void {
     std::println("show bmp1-----------------");
     Paint_SetScale(6);
-    Paint_SelectImage(image_cache_.data());
+    Paint_SelectImage(image_buffer_.data());
     Paint_Clear(EPD_7IN3E_WHITE);
     GUI_ReadBmp_RGB_6Color("./pic/7in3e.bmp", 0, 0);
-    EPD_7IN3E_Display(image_cache_.data());
+
+    EPD_7IN3E_Display(image_buffer_.data());
   }
 };
 
