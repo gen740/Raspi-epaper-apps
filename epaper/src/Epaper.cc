@@ -84,15 +84,18 @@ struct spi_ioc_transfer tr;
 auto DEV_HARDWARE_SPI_Mode(int mode) -> int {
   hardware_SPI.mode &= 0xfC;  // Clear low 2 digits
   hardware_SPI.mode |= mode;  // Setting mode
-
+                              //
   if (ioctl(hardware_SPI.fd, SPI_IOC_WR_MODE, &hardware_SPI.mode) == -1) {
-    std::println("can't set spi mode\r\n");
+    std::println("can't set spi mode");
     return -1;
   }
   return 1;
 }
 
 auto DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect CS_Mode) -> int {
+  std::println("SPI mode = {}", hardware_SPI.mode);
+  std::println("SPI mode = {}", hardware_SPI.fd);
+
   switch (CS_Mode) {
     case SPIChipSelect::SPI_CS_Mode_HIGH:
       hardware_SPI.mode |= SPI_CS_HIGH;
@@ -214,7 +217,6 @@ static void EPD_7IN3E_Reset() {
 static void EPD_7IN3E_ReadBusyH() {
   std::println("e-Paper busy H");
 
-  // auto value = ;
   auto value = request->get_value(EPD_BUSY_PIN);
 
   while (value == gpiod::line::value::INACTIVE) {  // LOW: busy, HIGH: idle
@@ -240,9 +242,10 @@ static void EPD_7IN3E_SendCommand(uint8_t Reg) {
   // DEV_Digital_Write(EPD_CS_PIN, 0);
   // DEV_SPI_WriteByte(Reg);
   // DEV_Digital_Write(EPD_CS_PIN, 1);
-  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_LOW);
+  request->set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE);
+  // DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_LOW);
   DEV_HARDWARE_SPI_TransferByte(Reg);
-  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_HIGH);
+  // DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_HIGH);
 }
 
 static void EPD_7IN3E_SendData(uint8_t Data) {
@@ -250,9 +253,10 @@ static void EPD_7IN3E_SendData(uint8_t Data) {
   // DEV_Digital_Write(EPD_CS_PIN, 0);
   // DEV_SPI_WriteByte(Data);
   // DEV_Digital_Write(EPD_CS_PIN, 1);
-  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_LOW);
+  request->set_value(EPD_DC_PIN, gpiod::line::value::ACTIVE);
+  // DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_LOW);
   DEV_HARDWARE_SPI_TransferByte(Data);
-  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_HIGH);
+  // DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_HIGH);
 }
 
 void EPD_7IN3E_Init() {
@@ -372,6 +376,7 @@ void EPD_7IN3E_Sleep() {
 
 void DEV_HARDWARE_SPI_end() {
   hardware_SPI.mode = 0;
+  std::println("DEV_HARDWARE_SPI_end");
   if (::close(hardware_SPI.fd) != 0) {
     std::println("Failed to close SPI device");
     perror("Failed to close SPI device.\n");
@@ -384,9 +389,11 @@ void DEV_Module_Exit() {
   // DEV_Digital_Write(EPD_PWR_PIN, 0);
   // DEV_Digital_Write(EPD_DC_PIN, 0);
   // DEV_Digital_Write(EPD_RST_PIN, 0);
+
   request->set_value(EPD_PWR_PIN, gpiod::line::value::INACTIVE)
       .set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE)
       .set_value(EPD_RST_PIN, gpiod::line::value::INACTIVE);
+  std::println("GPIOD lines set to INACTIVE");
 
   // GPIOD_Unexport(EPD_PWR_PIN);
   // GPIOD_Unexport(EPD_DC_PIN);

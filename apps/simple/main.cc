@@ -16,6 +16,8 @@ class EpaperDevice {
     Epaper::EPD_7IN3E_Init();
     Epaper::EPD_7IN3E_Clear(0x01);  // WHITE
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    Epaper::EPD_7IN3E_Clear(0x00);  // WHITE
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     image_buffer_.resize(static_cast<std::size_t>(2 * 480 * 800));
     // Paint_NewImage(image_buffer_.data(), EPD_7IN3E_WIDTH, EPD_7IN3E_HEIGHT, 0, EPD_7IN3E_WHITE);
   }
@@ -47,7 +49,7 @@ class EpaperDevice {
     // GUI_ReadBmp_RGB_6Color("./pic/output.bmp", 0, 0);
     int counter = 0;
     for (auto &&i : image_buffer_) {
-      i = static_cast<uint8_t>(counter++ % 6);  // Fill with some pattern
+      i = static_cast<uint8_t>(counter++ % 7);  // Fill with some pattern
     }
     Epaper::EPD_7IN3E_Display(image_buffer_.data());
   }
