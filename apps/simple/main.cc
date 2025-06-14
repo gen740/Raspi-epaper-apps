@@ -47,7 +47,7 @@ class Epaper {
     Paint_SetScale(6);
     Paint_SelectImage(image_buffer_.data());
     Paint_Clear(EPD_7IN3E_WHITE);
-    GUI_ReadBmp_RGB_6Color("./pic/7in3e.bmp", 0, 0);
+    GUI_ReadBmp_RGB_6Color("./pic/output.bmp", 0, 0);
 
     EPD_7IN3E_Display(image_buffer_.data());
   }
@@ -58,7 +58,7 @@ auto main() -> int {
     std::println("Simple test Start!!");
     auto &epaper = Epaper::get();
     epaper.test();
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
   } catch (const std::exception &e) {
     std::println("Exception occur: {}", e.what());
   }
