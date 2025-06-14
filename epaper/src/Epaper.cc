@@ -16,7 +16,6 @@ using namespace std::chrono_literals;
 
 constexpr int EPD_RST_PIN = 17;
 constexpr int EPD_DC_PIN = 25;
-constexpr int EPD_CS_PIN = 8;
 constexpr int EPD_PWR_PIN = 18;
 constexpr int EPD_BUSY_PIN = 24;
 constexpr int EPD_MOSI_PIN = 10;
@@ -26,22 +25,38 @@ constexpr int EPD_7IN3E_HEIGHT = 480;
 
 using gpiod::line::direction;
 
-std::unique_ptr<gpiod::chip> chip = {};
+const ::std::filesystem::path chip_path("/dev/gpiochip0");
+std::unique_ptr<gpiod::line_request> request = {};
 
-void GPIOD_Export() { chip = std::make_unique<gpiod::chip>("/dev/gpiochip0"); }
+void GPIOD_Export() {
+  // chip = std::make_unique<gpiod::chip>("/dev/gpiochip0");
+  ::gpiod::chip chip(chip_path);
+  auto info = chip.get_info();
 
-void DEV_GPIO_Init() {
-  auto request =
-      chip->prepare_request()
-          .set_consumer("epaper")
+  ::std::cout << info.name() << " [" << info.label() << "] (" << info.num_lines() << " lines)"
+              << ::std::endl;
+
+  std::println("GPIO chip opening");
+
+  static auto request_ =
+      ::gpiod::chip(chip_path)
+          .prepare_request()
+          .set_consumer("get-line-value")
           .add_line_settings(EPD_BUSY_PIN, gpiod::line_settings().set_direction(direction::INPUT))
           .add_line_settings(EPD_RST_PIN, gpiod::line_settings().set_direction(direction::OUTPUT))
           .add_line_settings(EPD_DC_PIN, gpiod::line_settings().set_direction(direction::OUTPUT))
-          .add_line_settings(EPD_CS_PIN, gpiod::line_settings().set_direction(direction::OUTPUT))
           .add_line_settings(EPD_PWR_PIN, gpiod::line_settings().set_direction(direction::OUTPUT))
           .do_request();
-  request.set_value(EPD_CS_PIN, gpiod::line::value::ACTIVE);
-  request.set_value(EPD_PWR_PIN, gpiod::line::value::ACTIVE);
+  request = std::unique_ptr<gpiod::line_request>(&request_);
+  std::println("Request prepared");
+}
+
+void DEV_GPIO_Init() {
+  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_HIGH);
+  std::println("EPD_CS_PIN set to ACTIVE");
+
+  request->set_value(EPD_PWR_PIN, gpiod::line::value::ACTIVE);
+  std::println("EPD_PWR_PIN set to ACTIVE");
 }
 
 // SPI
@@ -173,9 +188,13 @@ auto DEV_Module_Init() -> uint8_t {
   // }
   // printf("Write and read /dev/spidev0.0 \r\n");
   GPIOD_Export();
+  std::println("GPIOD_Exported");
   DEV_GPIO_Init();
+  std::println("DEV_GPIO_Init");
   DEV_HARDWARE_SPI_begin("/dev/spidev0.0");
+  std::println("DEV_HARDWARE_SPI_begin");
   DEV_HARDWARE_SPI_setSpeed(10000000);
+  std::println("DEV_HARDWARE_SPI_setSpeed");
   printf("/***********************************/ \r\n");
   return 0;
 }
@@ -183,15 +202,12 @@ auto DEV_Module_Init() -> uint8_t {
 // Epaper
 
 static void EPD_7IN3E_Reset() {
-  chip->prepare_request().set_consumer("epaper").do_request().set_value(EPD_RST_PIN,
-                                                                        gpiod::line::value::ACTIVE);
+  request->set_value(EPD_RST_PIN, gpiod::line::value::ACTIVE);
   std::this_thread::sleep_for(20ms);
-  chip->prepare_request().set_consumer("epaper").do_request().set_value(
-      EPD_RST_PIN, gpiod::line::value::INACTIVE);
+  request->set_value(EPD_RST_PIN, gpiod::line::value::INACTIVE);
   // .wait_edge_events(-1ns);
   std::this_thread::sleep_for(20ms);
-  chip->prepare_request().set_consumer("epaper").do_request().set_value(EPD_RST_PIN,
-                                                                        gpiod::line::value::ACTIVE);
+  request->set_value(EPD_RST_PIN, gpiod::line::value::ACTIVE);
   std::this_thread::sleep_for(20ms);
 }
 
@@ -199,10 +215,10 @@ static void EPD_7IN3E_ReadBusyH() {
   std::println("e-Paper busy H");
 
   // auto value = ;
-  auto value = chip->prepare_request().set_consumer("epaper").do_request().get_value(EPD_BUSY_PIN);
+  auto value = request->get_value(EPD_BUSY_PIN);
 
   while (value == gpiod::line::value::INACTIVE) {  // LOW: busy, HIGH: idle
-    value = chip->prepare_request().set_consumer("epaper").do_request().get_value(EPD_BUSY_PIN);
+    value = request->get_value(EPD_BUSY_PIN);
     std::this_thread::sleep_for(1ms);
   }
   std::println("e-Paper busy H release");
@@ -224,16 +240,9 @@ static void EPD_7IN3E_SendCommand(uint8_t Reg) {
   // DEV_Digital_Write(EPD_CS_PIN, 0);
   // DEV_SPI_WriteByte(Reg);
   // DEV_Digital_Write(EPD_CS_PIN, 1);
-  chip->prepare_request()
-      .set_consumer("epaper")
-      .do_request()
-      .set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE)
-      .set_value(EPD_CS_PIN, gpiod::line::value::INACTIVE);
+  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_LOW);
   DEV_HARDWARE_SPI_TransferByte(Reg);
-  chip->prepare_request()                                  //
-      .set_consumer("epaper")                              //
-      .do_request()                                        //
-      .set_value(EPD_CS_PIN, gpiod::line::value::ACTIVE);  //
+  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_HIGH);
 }
 
 static void EPD_7IN3E_SendData(uint8_t Data) {
@@ -241,16 +250,9 @@ static void EPD_7IN3E_SendData(uint8_t Data) {
   // DEV_Digital_Write(EPD_CS_PIN, 0);
   // DEV_SPI_WriteByte(Data);
   // DEV_Digital_Write(EPD_CS_PIN, 1);
-  chip->prepare_request()
-      .set_consumer("epaper")
-      .do_request()
-      .set_value(EPD_DC_PIN, gpiod::line::value::ACTIVE)
-      .set_value(EPD_CS_PIN, gpiod::line::value::INACTIVE);
+  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_LOW);
   DEV_HARDWARE_SPI_TransferByte(Data);
-  chip->prepare_request()                                  //
-      .set_consumer("epaper")                              //
-      .do_request()                                        //
-      .set_value(EPD_CS_PIN, gpiod::line::value::ACTIVE);  //
+  DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect::SPI_CS_Mode_HIGH);
 }
 
 void EPD_7IN3E_Init() {
@@ -382,11 +384,7 @@ void DEV_Module_Exit() {
   // DEV_Digital_Write(EPD_PWR_PIN, 0);
   // DEV_Digital_Write(EPD_DC_PIN, 0);
   // DEV_Digital_Write(EPD_RST_PIN, 0);
-  chip->prepare_request()
-      .set_consumer("epaper")
-      .do_request()
-      .set_value(EPD_CS_PIN, gpiod::line::value::INACTIVE)
-      .set_value(EPD_PWR_PIN, gpiod::line::value::INACTIVE)
+  request->set_value(EPD_PWR_PIN, gpiod::line::value::INACTIVE)
       .set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE)
       .set_value(EPD_RST_PIN, gpiod::line::value::INACTIVE);
 
@@ -395,7 +393,8 @@ void DEV_Module_Exit() {
   // GPIOD_Unexport(EPD_RST_PIN);
   // GPIOD_Unexport(EPD_BUSY_PIN);
   // GPIOD_Unexport_GPIO();
-  chip->close();
+  // request->release();
+  // gpiod::chip(chip_path).close();
 }
 
 void EPD_7IN3E_Display(uint8_t *Image) {
