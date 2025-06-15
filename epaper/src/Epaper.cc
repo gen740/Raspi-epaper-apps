@@ -18,8 +18,6 @@ constexpr int EPD_RST_PIN = 17;
 constexpr int EPD_DC_PIN = 25;
 constexpr int EPD_PWR_PIN = 18;
 constexpr int EPD_BUSY_PIN = 24;
-constexpr int EPD_MOSI_PIN = 10;
-constexpr int EPD_SCLK_PIN = 11;
 constexpr int EPD_7IN3E_WIDTH = 800;
 constexpr int EPD_7IN3E_HEIGHT = 480;
 
@@ -29,7 +27,6 @@ const ::std::filesystem::path chip_path("/dev/gpiochip0");
 std::unique_ptr<gpiod::line_request> request = {};
 
 void GPIOD_Export() {
-  // chip = std::make_unique<gpiod::chip>("/dev/gpiochip0");
   ::gpiod::chip chip(chip_path);
   auto info = chip.get_info();
 
@@ -93,14 +90,10 @@ auto DEV_HARDWARE_SPI_Mode(int mode) -> int {
 }
 
 auto DEV_HARDWARE_SPI_ChipSelect(SPIChipSelect CS_Mode) -> int {
-  std::println("SPI mode = {}", hardware_SPI.mode);
-  std::println("SPI mode = {}", hardware_SPI.fd);
-
   switch (CS_Mode) {
     case SPIChipSelect::SPI_CS_Mode_HIGH:
       hardware_SPI.mode |= SPI_CS_HIGH;
       hardware_SPI.mode &= ~SPI_NO_CS;
-      std::println("CS HIGH");
       break;
     case SPIChipSelect::SPI_CS_Mode_LOW:
       hardware_SPI.mode &= ~SPI_CS_HIGH;
@@ -215,15 +208,11 @@ static void EPD_7IN3E_Reset() {
 }
 
 static void EPD_7IN3E_ReadBusyH() {
-  std::println("e-Paper busy H");
-
   auto value = request->get_value(EPD_BUSY_PIN);
-
   while (value == gpiod::line::value::INACTIVE) {  // LOW: busy, HIGH: idle
     value = request->get_value(EPD_BUSY_PIN);
     std::this_thread::sleep_for(1ms);
   }
-  std::println("e-Paper busy H release");
 }
 
 auto DEV_HARDWARE_SPI_TransferByte(uint8_t buf) -> uint8_t {
@@ -385,23 +374,10 @@ void DEV_HARDWARE_SPI_end() {
 
 void DEV_Module_Exit() {
   DEV_HARDWARE_SPI_end();
-  // DEV_Digital_Write(EPD_CS_PIN, 0);
-  // DEV_Digital_Write(EPD_PWR_PIN, 0);
-  // DEV_Digital_Write(EPD_DC_PIN, 0);
-  // DEV_Digital_Write(EPD_RST_PIN, 0);
-
   request->set_value(EPD_PWR_PIN, gpiod::line::value::INACTIVE)
       .set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE)
       .set_value(EPD_RST_PIN, gpiod::line::value::INACTIVE);
   std::println("GPIOD lines set to INACTIVE");
-
-  // GPIOD_Unexport(EPD_PWR_PIN);
-  // GPIOD_Unexport(EPD_DC_PIN);
-  // GPIOD_Unexport(EPD_RST_PIN);
-  // GPIOD_Unexport(EPD_BUSY_PIN);
-  // GPIOD_Unexport_GPIO();
-  // request->release();
-  // gpiod::chip(chip_path).close();
 }
 
 void EPD_7IN3E_Display(uint8_t *Image) {

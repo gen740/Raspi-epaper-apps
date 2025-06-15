@@ -4,33 +4,20 @@
 #include <thread>
 #include <vector>
 
-#include "Epaper.hh"
+#include "epd_7in3e.hh"
 
 class EpaperDevice {
  private:
-  EpaperDevice() {
-    if (Epaper::DEV_Module_Init() != 0) {
-      throw std::runtime_error("Could not initialize the device");
-    }
-    std::println("e-Paper Init and Clear...");
-    Epaper::EPD_7IN3E_Init();
-    Epaper::EPD_7IN3E_Clear(0x01);  // WHITE
+  EpaperDevice() : epd7in3e_() {
+    epd7in3e_.clear(Epaper::EPDColor::BLUE);
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    Epaper::EPD_7IN3E_Clear(0x00);  // WHITE
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    image_buffer_.resize(static_cast<std::size_t>(2 * 480 * 800));
+    image_buffer_.resize(static_cast<std::size_t>(480 * 800));
     // Paint_NewImage(image_buffer_.data(), EPD_7IN3E_WIDTH, EPD_7IN3E_HEIGHT, 0, EPD_7IN3E_WHITE);
   }
-
-  ~EpaperDevice() {
-    std::println("Clear...");
-    Epaper::EPD_7IN3E_Clear(0x01);
-    Epaper::EPD_7IN3E_Sleep();
-    std::println("e-Paper Sleep...");
-    Epaper::DEV_Module_Exit();
-  }
+  ~EpaperDevice() = default;
 
   std::vector<uint8_t> image_buffer_;
+  Epaper::EPD7IN3E epd7in3e_;
 
  public:
   EpaperDevice(const EpaperDevice &) = delete;
@@ -42,16 +29,15 @@ class EpaperDevice {
   }
 
   auto test() -> void {
-    // std::println("show bmp1-----------------");
-    // Paint_SetScale(6);
-    // Paint_SelectImage(image_buffer_.data());
-    // Paint_Clear(EPD_7IN3E_WHITE);
-    // GUI_ReadBmp_RGB_6Color("./pic/output.bmp", 0, 0);
     int counter = 0;
     for (auto &&i : image_buffer_) {
-      i = static_cast<uint8_t>(counter++ % 7);  // Fill with some pattern
+      auto color = static_cast<uint8_t>(counter++ % 7);
+      if (color > 3) {
+        color += 1;
+      }
+      i = static_cast<uint8_t>(color << 4 | color);  // Fill with some pattern
     }
-    Epaper::EPD_7IN3E_Display(image_buffer_.data());
+    epd7in3e_.display(image_buffer_.data());
   }
 };
 
