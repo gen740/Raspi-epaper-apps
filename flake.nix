@@ -13,31 +13,42 @@
 
       perSystem =
         { pkgs, ... }:
+        let
+          bcm2835 = pkgs.callPackage ./bcm2835.nix { };
+          stb_image = pkgs.callPackage ./stb_image.nix { };
+        in
         {
           devShells.default = pkgs.mkShell {
-            packages = [
-              (pkgs.python312.withPackages (
-                ps: with ps; [
-                  pillow
-                  numpy
-                  scipy
-                ]
-              ))
-              pkgs.cmake
-              pkgs.ninja
-              pkgs.llvmPackages_20.clang-tools
-              pkgs.llvmPackages_20.libcxxClang
-              pkgs.cmake-format
-              pkgs.cmake-language-server
-            ] ++ (if pkgs.stdenv.isLinux then [ pkgs.libgpiod ] else [ ]);
-            shellHook = ''
-              export CC="${pkgs.llvmPackages_20.libcxxClang}/bin/clang"
-              export CXX="${pkgs.llvmPackages_20.libcxxClang}/bin/clang++"
-            '';
-
+            packages =
+              [
+                (pkgs.python312.withPackages (
+                  ps: with ps; [
+                    pillow
+                    numpy
+                    scipy
+                  ]
+                ))
+                pkgs.cmake
+                pkgs.ninja
+                pkgs.pkg-config
+                pkgs.llvmPackages_20.clang-tools
+                pkgs.llvmPackages_20.libcxxClang
+                pkgs.cmake-format
+                pkgs.cmake-language-server
+                stb_image
+              ]
+              ++ (
+                if pkgs.stdenv.isLinux then
+                  [
+                    pkgs.libgpiod
+                    bcm2835
+                  ]
+                else
+                  [ ]
+              );
           };
 
-          packages.default = pkgs.llvmPackages_20.stdenv.mkDerivation {
+          packages.default = pkgs.stdenv.mkDerivation {
             name = "demo";
             src = ./.;
             nativeBuildInputs = [
@@ -47,6 +58,8 @@
             ];
             buildInputs = [
               pkgs.libgpiod
+              bcm2835
+              stb_image
             ];
 
           };

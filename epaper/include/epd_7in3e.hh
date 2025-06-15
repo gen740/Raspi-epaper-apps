@@ -1,8 +1,10 @@
 #pragma once
 
+#include <bcm2835.h>
 #include <fcntl.h>
 #include <linux/spi/spidev.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
 
 #include <cstdint>
 #include <gpiod.hpp>
@@ -12,9 +14,9 @@
 namespace Epaper {
 
 enum class SPIChipSelect : uint8_t {
-  LOW = 0,  /*!< Chip Select 0 */
-  HIGH = 1, /*!< Chip Select 1 */
-  NONE = 3  /*!< No CS, control it yourself */
+  CS_LOW = 0,  /*!< Chip Select 0 */
+  CS_HIGH = 1, /*!< Chip Select 1 */
+  CS_NONE = 3  /*!< No CS, control it yourself */
 };
 
 enum class SPIBitOrder {
@@ -23,12 +25,12 @@ enum class SPIBitOrder {
 };
 
 enum class EPDColor : uint8_t {
-  BLACK = 0x00, /*!< Black */
-  WHITE = 0x01, /*!< White */
+  BLACK = 0x00,  /*!< Black */
+  WHITE = 0x01,  /*!< White */
   YELLOW = 0x02, /*!< Yellow */
-  RED = 0x03,   /*!< Red */
-  BLUE = 0x05,  /*!< Blue */
-  GREEN = 0x06, /*!< Green */
+  RED = 0x03,    /*!< Red */
+  BLUE = 0x05,   /*!< Blue */
+  GREEN = 0x06,  /*!< Green */
 };
 
 using namespace std::chrono_literals;
@@ -72,7 +74,7 @@ class EPD7IN3E {
                     .add_line_settings(EPD_PWR_PIN, ::gpiod::line_settings().set_direction(
                                                         ::gpiod::line::direction::OUTPUT))
                     .do_request()) {
-    set_spi_chipselect_(SPIChipSelect::HIGH);
+    set_spi_chipselect_(SPIChipSelect::CS_HIGH);
     request.set_value(EPD_PWR_PIN, gpiod::line::value::ACTIVE);
     spi_begin_("/dev/spidev0.0");
     set_spi_speed_(10000000);
@@ -120,22 +122,20 @@ class EPD7IN3E {
  private:
   auto set_spi_chipselect_(SPIChipSelect CS_Mode) -> int {
     switch (CS_Mode) {
-      case SPIChipSelect::HIGH:
+      case SPIChipSelect::CS_HIGH:
         spi_mode_ |= SPI_CS_HIGH;
-        spi_mode_ &= ~SPI_NO_CS;
-        std::println("CS HIGH");
         break;
-      case SPIChipSelect::LOW:
+
+      case SPIChipSelect::CS_LOW:
         spi_mode_ &= ~SPI_CS_HIGH;
-        spi_mode_ &= ~SPI_NO_CS;
         break;
-      case SPIChipSelect::NONE:
+
+      case SPIChipSelect::CS_NONE:
         spi_mode_ |= SPI_NO_CS;
         break;
     }
-
     if (ioctl(spi_fd_, SPI_IOC_WR_MODE, &spi_mode_) == -1) {
-      std::println("can't set spi mode");
+      std::println("can't set spi mode (chip select)");
       return -1;
     }
     return 1;
@@ -156,37 +156,19 @@ class EPD7IN3E {
   auto set_spi_bit_order_(SPIBitOrder order) -> int {
     switch (order) {
       case SPIBitOrder::LSBFIRST:
-        spi_mode_ |= SPI_LSB_FIRST;
+        bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST);
         break;
       case SPIBitOrder::MSBFIRST:
-        spi_mode_ &= ~SPI_LSB_FIRST;
+        bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
         break;
     }
-    if (ioctl(spi_fd_, SPI_IOC_WR_MODE, &spi_mode_) == -1) {
-      std::println("can't set spi bit order");
-      return -1;
-    }
     return 1;
   }
 
-  auto set_spi_speed_(uint32_t speed) -> int {
-    uint32_t current_speed = spi_tr_.speed_hz;
-    spi_tr_.speed_hz = speed;
-    if (ioctl(spi_fd_, SPI_IOC_WR_MAX_SPEED_HZ, &spi_tr_.speed_hz) == -1) {
-      std::println("can't set spi speed");
-      spi_tr_.speed_hz = current_speed;
-      return -1;
-    }
-    if (ioctl(spi_fd_, SPI_IOC_RD_MAX_SPEED_HZ, &spi_tr_.speed_hz) == -1) {
-      std::println("can't read spi speed");
-      spi_tr_.speed_hz = current_speed;
-      return -1;
-    }
-    return 1;
-  }
+  auto set_spi_speed_(uint32_t speed) -> void { bcm2835_spi_set_speed_hz(speed); }
 
   auto spi_begin_(const char *spi_device) -> int {
-    spi_fd_ = open(spi_device, O_RDWR);
+    spi_fd_ = ::open(spi_device, O_RDWR);
     if (spi_fd_ < 0) {
       throw std::runtime_error("Failed to open SPI device");
     }
@@ -196,34 +178,41 @@ class EPD7IN3E {
     if (ioctl(spi_fd_, SPI_IOC_RD_BITS_PER_WORD, &spi_tr_.bits_per_word) == -1) {
       throw std::runtime_error("Failed to read bits per word");
     }
-    set_spi_mode_(SPI_MODE_0);
-    set_spi_chipselect_(SPIChipSelect::LOW);
-    set_spi_bit_order_(SPIBitOrder::LSBFIRST);
+    // set_spi_mode_(SPI_MODE_0);
+
+    if (bcm2835_init() != 1) {
+      throw std::runtime_error("Failed to initialize SPI");
+    }
+    bcm2835_spi_begin();
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);
+    // set_spi_bit_order_(SPIBitOrder::LSBFIRST);
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST);
     set_spi_speed_(20000000);   // Default speed
     set_spi_data_interval_(5);  // Default delay in microseconds
+    set_spi_chipselect_(SPIChipSelect::CS_LOW);
     return 0;
   }
 
   auto device_send_command_(uint8_t command) -> void {
     request.set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE);
-    set_spi_chipselect_(SPIChipSelect::LOW);
+    set_spi_chipselect_(SPIChipSelect::CS_LOW);
     spi_tr_.tx_buf = reinterpret_cast<uint64_t>(&command);
     spi_tr_.len = 1;
     if (ioctl(spi_fd_, SPI_IOC_MESSAGE(1), &spi_tr_) < 1) {
       std::println("Failed to send SPI command");
     }
-    // set_spi_chipselect_(SPIChipSelect::HIGH);
+    set_spi_chipselect_(SPIChipSelect::CS_HIGH);
   }
 
   auto device_send_data_(uint8_t data) -> void {
     request.set_value(EPD_DC_PIN, gpiod::line::value::ACTIVE);
-    // set_spi_chipselect_(SPIChipSelect::LOW);
+    set_spi_chipselect_(SPIChipSelect::CS_LOW);
     spi_tr_.tx_buf = reinterpret_cast<uint64_t>(&data);
     spi_tr_.len = 1;
     if (ioctl(spi_fd_, SPI_IOC_MESSAGE(1), &spi_tr_) < 1) {
       std::println("Failed to send SPI data");
     }
-    // set_spi_chipselect_(SPIChipSelect::HIGH);
+    set_spi_chipselect_(SPIChipSelect::CS_HIGH);
   }
 
   auto device_read_busy_() -> void {
@@ -233,14 +222,12 @@ class EPD7IN3E {
   }
 
   auto device_init_() -> void {
-    // Rset the e-Paper display
-    request.set_value(EPD_RST_PIN, gpiod::line::value::ACTIVE);
-    std::this_thread::sleep_for(20ms);
-    request.set_value(EPD_RST_PIN, gpiod::line::value::INACTIVE);
-    // .wait_edge_events(-1ns);
-    std::this_thread::sleep_for(20ms);
-    request.set_value(EPD_RST_PIN, gpiod::line::value::ACTIVE);
-    std::this_thread::sleep_for(20ms);
+    request.set_value(EPD_RST_PIN, gpiod::line::value::ACTIVE)
+        .wait_edge_events(20ms);  // Wait for the line to be active
+    request.set_value(EPD_RST_PIN, gpiod::line::value::INACTIVE)
+        .wait_edge_events(20ms);  // Wait for the line to be inactive
+    request.set_value(EPD_RST_PIN, gpiod::line::value::ACTIVE)
+        .wait_edge_events(20ms);  // Wait for the line to be active again
 
     device_read_busy_();
     std::println("e-Paper Init and Clear...");
