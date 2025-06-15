@@ -46,19 +46,6 @@ class EPD7IN3E {
   static constexpr int EPD_7IN3E_WIDTH = 800;
   static constexpr int EPD_7IN3E_HEIGHT = 480;
   ::gpiod::line_request request;
-  int spi_fd_ = 0;
-  uint64_t spi_mode_ = 0;
-  spi_ioc_transfer spi_tr_ = {.tx_buf = 0,
-                              .rx_buf = 0,
-                              .len = 0,
-                              .speed_hz = 20000000,
-                              .delay_usecs = 5,
-                              .bits_per_word = 8,
-                              .cs_change = 0,
-                              .tx_nbits = 0,
-                              .rx_nbits = 0,
-                              .word_delay_usecs = 0,
-                              .pad = 0};
 
  public:
   EPD7IN3E()
@@ -74,18 +61,15 @@ class EPD7IN3E {
                     .add_line_settings(EPD_PWR_PIN, ::gpiod::line_settings().set_direction(
                                                         ::gpiod::line::direction::OUTPUT))
                     .do_request()) {
-    set_spi_chipselect_(SPIChipSelect::CS_HIGH);
     request.set_value(EPD_PWR_PIN, gpiod::line::value::ACTIVE);
-    spi_begin_("/dev/spidev0.0");
+    spi_begin_();
     set_spi_speed_(10000000);
     device_init_();
   }
 
   ~EPD7IN3E() {
     clear(EPDColor::WHITE);
-    if (::close(spi_fd_) != 0) {
-      std::println("Failed to close SPI device");
-    }
+    bcm2835_spi_end();
     request.set_value(EPD_PWR_PIN, gpiod::line::value::INACTIVE)
         .set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE)
         .set_value(EPD_RST_PIN, gpiod::line::value::INACTIVE);
@@ -120,39 +104,6 @@ class EPD7IN3E {
   }
 
  private:
-  auto set_spi_chipselect_(SPIChipSelect CS_Mode) -> int {
-    switch (CS_Mode) {
-      case SPIChipSelect::CS_HIGH:
-        spi_mode_ |= SPI_CS_HIGH;
-        break;
-
-      case SPIChipSelect::CS_LOW:
-        spi_mode_ &= ~SPI_CS_HIGH;
-        break;
-
-      case SPIChipSelect::CS_NONE:
-        spi_mode_ |= SPI_NO_CS;
-        break;
-    }
-    if (ioctl(spi_fd_, SPI_IOC_WR_MODE, &spi_mode_) == -1) {
-      std::println("can't set spi mode (chip select)");
-      return -1;
-    }
-    return 1;
-  }
-
-  auto set_spi_mode_(uint8_t mode) -> int {
-    spi_mode_ &= 0xFC;
-    spi_mode_ |= mode;
-    if (ioctl(spi_fd_, SPI_IOC_WR_MODE, &spi_mode_) == -1) {
-      std::println("can't set spi mode");
-      return -1;
-    }
-    return 1;
-  }
-
-  auto set_spi_data_interval_(uint16_t us) -> void { spi_tr_.delay_usecs = us; }
-
   auto set_spi_bit_order_(SPIBitOrder order) -> int {
     switch (order) {
       case SPIBitOrder::LSBFIRST:
@@ -167,52 +118,30 @@ class EPD7IN3E {
 
   auto set_spi_speed_(uint32_t speed) -> void { bcm2835_spi_set_speed_hz(speed); }
 
-  auto spi_begin_(const char *spi_device) -> int {
-    spi_fd_ = ::open(spi_device, O_RDWR);
-    if (spi_fd_ < 0) {
-      throw std::runtime_error("Failed to open SPI device");
-    }
-    if (ioctl(spi_fd_, SPI_IOC_WR_BITS_PER_WORD, &spi_tr_.bits_per_word) == -1) {
-      throw std::runtime_error("Failed to set bits per word");
-    }
-    if (ioctl(spi_fd_, SPI_IOC_RD_BITS_PER_WORD, &spi_tr_.bits_per_word) == -1) {
-      throw std::runtime_error("Failed to read bits per word");
-    }
-    // set_spi_mode_(SPI_MODE_0);
-
+  auto spi_begin_() -> int {
     if (bcm2835_init() != 1) {
       throw std::runtime_error("Failed to initialize SPI");
     }
     bcm2835_spi_begin();
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);
-    // set_spi_bit_order_(SPIBitOrder::LSBFIRST);
-    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST);
-    set_spi_speed_(20000000);   // Default speed
-    set_spi_data_interval_(5);  // Default delay in microseconds
-    set_spi_chipselect_(SPIChipSelect::CS_LOW);
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
+    bcm2835_spi_set_speed_hz(20000000);       // Default speed
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);  // Set chip select to CS0
     return 0;
   }
 
   auto device_send_command_(uint8_t command) -> void {
     request.set_value(EPD_DC_PIN, gpiod::line::value::INACTIVE);
-    set_spi_chipselect_(SPIChipSelect::CS_LOW);
-    spi_tr_.tx_buf = reinterpret_cast<uint64_t>(&command);
-    spi_tr_.len = 1;
-    if (ioctl(spi_fd_, SPI_IOC_MESSAGE(1), &spi_tr_) < 1) {
-      std::println("Failed to send SPI command");
-    }
-    set_spi_chipselect_(SPIChipSelect::CS_HIGH);
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);      // Set chip select to CS0
+    bcm2835_spi_transfer(command);                // Send command via SPI
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS_NONE);  // Set chip select to none
   }
 
   auto device_send_data_(uint8_t data) -> void {
     request.set_value(EPD_DC_PIN, gpiod::line::value::ACTIVE);
-    set_spi_chipselect_(SPIChipSelect::CS_LOW);
-    spi_tr_.tx_buf = reinterpret_cast<uint64_t>(&data);
-    spi_tr_.len = 1;
-    if (ioctl(spi_fd_, SPI_IOC_MESSAGE(1), &spi_tr_) < 1) {
-      std::println("Failed to send SPI data");
-    }
-    set_spi_chipselect_(SPIChipSelect::CS_HIGH);
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);      // Set chip select to CS0
+    bcm2835_spi_transfer(data);                   // Send data via SPI
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS_NONE);  // Set chip select to none
   }
 
   auto device_read_busy_() -> void {

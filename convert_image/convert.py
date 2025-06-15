@@ -7,11 +7,23 @@ import copy
 PALETTE = np.array(
     [
         (0, 0, 0),  # Black
+        # (30, 30, 30),
+        # (10, 10, 10),
         (255, 255, 255),  # White
+        # (180, 180, 180),  # White
+        # (245, 245, 245),  # White
         (255, 255, 0),  # Yellow
+        # (200, 195, 65),  # Yellow
+        # (245, 245, 12),  # Yellow
         (255, 0, 0),  # Red
+        # (150, 50, 30),  # Red
+        # (245, 12, 10),  # Red
         (0, 0, 255),  # Blue
+        # (50, 80, 150),  # Blue
+        # (10, 13, 245),  # Blue
         (0, 255, 0),  # Green
+        # (50, 70, 60),  # Green
+        # (10, 245, 12),  # Green
     ],
     dtype=np.uint8,
 )
@@ -23,24 +35,33 @@ def scale_and_center_crop(im: Image.Image, size: tuple[int, int]) -> Image.Image
     target_w, target_h = size
     src_w, src_h = im.size
 
-    # 拡大率を求める（アスペクト比維持・全体が入るように拡大）
-    scale = max(target_w / src_w, target_h / src_h)
-    new_w, new_h = int(src_w * scale), int(src_h * scale)
+    # 対象アスペクト比
+    target_aspect = target_w / target_h
+    src_aspect = src_w / src_h
 
-    # リサイズ（アスペクト比維持、全体が入る）
-    resized = im.resize((new_w, new_h), Image.LANCZOS)
+    if src_aspect > target_aspect:
+        # 横長なので左右をトリミング
+        new_w = int(src_h * target_aspect)
+        left = (src_w - new_w) // 2
+        top = 0
+        right = left + new_w
+        bottom = src_h
+    else:
+        # 縦長なので上下をトリミング
+        new_h = int(src_w / target_aspect)
+        top = (src_h - new_h) // 2
+        left = 0
+        bottom = top + new_h
+        right = src_w
 
-    # 中央から切り抜き
-    left = (new_w - target_w) // 2
-    top = (new_h - target_h) // 2
-    right = left + target_w
-    bottom = top + target_h
-
-    return resized.crop((left, top, right, bottom))
+    # 中央トリミングしてからリサイズ
+    cropped = im.crop((left, top, right, bottom))
+    resized = cropped.resize((target_w, target_h), Image.LANCZOS)
+    return resized
 
 
 # 入力画像
-img = Image.open("input.png").convert("RGB")
+img = Image.open("input.jpg").convert("RGB")
 img = scale_and_center_crop(img, (800, 480))
 img.save("scaled_image.bmp", format="BMP")
 img_np = np.array(img, dtype=np.int16)
