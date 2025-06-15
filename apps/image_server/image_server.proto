@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package image_server;
+
+// enum 定義
+enum Status {
+    QUEUED = 0;
+    BUSY = 1;
+    ERROR = 2;
+}
+
+// リクエスト: 可変長の byte 列
+message DataRequest {
+    bytes payload = 1;
+}
+
+// レスポンス: ステータス
+message DataResponse {
+    Status status = 1;
+}
+
+// サービス定義
+service DataService {
+    rpc SendData(DataRequest) returns (DataResponse);
+}

@@ -26,6 +26,7 @@
                     pillow
                     numpy
                     scipy
+                    mypy-protobuf
                   ]
                 ))
                 pkgs.cmake
@@ -35,6 +36,9 @@
                 pkgs.llvmPackages_20.libcxxClang
                 pkgs.cmake-format
                 pkgs.cmake-language-server
+                pkgs.protobuf
+                pkgs.openssl
+                pkgs.grpc
                 stb_image
               ]
               ++ (
@@ -59,6 +63,9 @@
             buildInputs = [
               pkgs.libgpiod
               bcm2835
+              pkgs.protobuf
+              pkgs.grpc
+              pkgs.openssl
               stb_image
             ];
 
