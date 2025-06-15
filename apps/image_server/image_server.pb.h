@@ -75,8 +75,8 @@ internal::EnumTraitsT<::image_server::Status_internal_data_>
 
 namespace image_server {
 enum Status : int {
-  QUEUED = 0,
-  BUSY = 1,
+  OK = 0,
+  IMAGE_SIZE_MISMATCH = 1,
   ERROR = 2,
   Status_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),

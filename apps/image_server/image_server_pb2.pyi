@@ -23,15 +23,15 @@ class _Status:
 
 class _StatusEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_Status.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
-    QUEUED: _Status.ValueType  # 0
-    BUSY: _Status.ValueType  # 1
+    OK: _Status.ValueType  # 0
+    IMAGE_SIZE_MISMATCH: _Status.ValueType  # 1
     ERROR: _Status.ValueType  # 2
 
 class Status(_Status, metaclass=_StatusEnumTypeWrapper):
     """enum 定義"""
 
-QUEUED: Status.ValueType  # 0
-BUSY: Status.ValueType  # 1
+OK: Status.ValueType  # 0
+IMAGE_SIZE_MISMATCH: Status.ValueType  # 1
 ERROR: Status.ValueType  # 2
 global___Status = Status
 

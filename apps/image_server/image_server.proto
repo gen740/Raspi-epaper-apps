@@ -4,8 +4,8 @@ package image_server;
 
 // enum 定義
 enum Status {
-    QUEUED = 0;
-    BUSY = 1;
+    OK = 0;
+    IMAGE_SIZE_MISMATCH = 1;
     ERROR = 2;
 }
 

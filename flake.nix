@@ -21,14 +21,15 @@
           devShells.default = pkgs.mkShell {
             packages =
               [
-                (pkgs.python312.withPackages (
-                  ps: with ps; [
-                    pillow
-                    numpy
-                    scipy
-                    mypy-protobuf
-                  ]
-                ))
+              pkgs.python312Packages.venvShellHook
+                # (pkgs.python312.withPackages (
+                #   ps: with ps; [
+                #     pillow
+                #     numpy
+                #     scipy
+                #     mypy-protobuf
+                #   ]
+                # ))
                 pkgs.cmake
                 pkgs.ninja
                 pkgs.pkg-config
@@ -50,6 +51,7 @@
                 else
                   [ ]
               );
+              venvDir = "venv";
           };
 
           packages.default = pkgs.stdenv.mkDerivation {

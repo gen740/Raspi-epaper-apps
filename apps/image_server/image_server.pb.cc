@@ -121,16 +121,16 @@ const char descriptor_table_protodef_image_5fserver_2eproto[] ABSL_ATTRIBUTE_SEC
     "\n\022image_server.proto\022\014image_server\"\036\n\013Da"
     "taRequest\022\017\n\007payload\030\001 \001(\014\"4\n\014DataRespon"
     "se\022$\n\006status\030\001 \001(\0162\024.image_server.Status"
-    "*)\n\006Status\022\n\n\006QUEUED\020\000\022\010\n\004BUSY\020\001\022\t\n\005ERRO"
-    "R\020\0022P\n\013DataService\022A\n\010SendData\022\031.image_s"
-    "erver.DataRequest\032\032.image_server.DataRes"
-    "ponseb\006proto3"
+    "*4\n\006Status\022\006\n\002OK\020\000\022\027\n\023IMAGE_SIZE_MISMATC"
+    "H\020\001\022\t\n\005ERROR\020\0022P\n\013DataService\022A\n\010SendDat"
+    "a\022\031.image_server.DataRequest\032\032.image_ser"
+    "ver.DataResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_image_5fserver_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_image_5fserver_2eproto = {
     false,
     false,
-    253,
+    264,
     descriptor_table_protodef_image_5fserver_2eproto,
     "image_server.proto",
     &descriptor_table_image_5fserver_2eproto_once,
