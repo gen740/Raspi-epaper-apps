@@ -1,5 +1,6 @@
 from PIL import Image
 import numpy as np
+import sys
 from scipy.spatial import KDTree
 import copy
 
@@ -60,36 +61,45 @@ def scale_and_center_crop(im: Image.Image, size: tuple[int, int]) -> Image.Image
     return resized
 
 
-# 入力画像
-img = Image.open("input.jpg").convert("RGB")
-img = scale_and_center_crop(img, (800, 480))
-img.save("scaled_image.bmp", format="BMP")
-img_np = np.array(img, dtype=np.int16)
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python convert.py <input_image>")
+        sys.exit(1)
+    input_image = sys.argv[1]
+
+    # 入力画像
+    img = Image.open(input_image).convert("RGB")
+    img = scale_and_center_crop(img, (800, 480))
+    img.save("./out/scaled_image.bmp", format="BMP")
+    img_np = np.array(img, dtype=np.int16)
+
+    height, width, _ = img_np.shape
+    for y in range(height):
+        for x in range(width):
+            old_pixel = copy.deepcopy(img_np[y, x])
+            _, idx = tree.query(old_pixel)
+            new_pixel = copy.deepcopy(PALETTE[idx])
+            img_np[y, x] = new_pixel
+            error = old_pixel - new_pixel
+
+            # 拡散
+            for dx, dy, coeff in [
+                (1, 0, 7 / 16),
+                (-1, 1, 3 / 16),
+                (0, 1, 5 / 16),
+                (1, 1, 1 / 16),
+            ]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < width and 0 <= ny < height:
+                    img_np[ny, nx] += (error * coeff).astype(np.int16)
+
+    # 画素値を正規化して画像化
+    img_np = np.clip(img_np, 0, 255).astype(np.uint8)
+    dithered_img = Image.fromarray(img_np)
+
+    # --- Step 3: BMPで保存 ---
+    dithered_img.save("./out/output.bmp", format="BMP")
 
 
-height, width, _ = img_np.shape
-for y in range(height):
-    for x in range(width):
-        old_pixel = copy.deepcopy(img_np[y, x])
-        _, idx = tree.query(old_pixel)
-        new_pixel = copy.deepcopy(PALETTE[idx])
-        img_np[y, x] = new_pixel
-        error = old_pixel - new_pixel
-
-        # 拡散
-        for dx, dy, coeff in [
-            (1, 0, 7 / 16),
-            (-1, 1, 3 / 16),
-            (0, 1, 5 / 16),
-            (1, 1, 1 / 16),
-        ]:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < width and 0 <= ny < height:
-                img_np[ny, nx] += (error * coeff).astype(np.int16)
-
-# 画素値を正規化して画像化
-img_np = np.clip(img_np, 0, 255).astype(np.uint8)
-dithered_img = Image.fromarray(img_np)
-
-# --- Step 3: BMPで保存 ---
-dithered_img.save("output.bmp", format="BMP")
+if __name__ == "__main__":
+    main()

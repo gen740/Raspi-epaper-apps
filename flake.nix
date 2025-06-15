@@ -14,22 +14,14 @@
       perSystem =
         { pkgs, ... }:
         let
-          bcm2835 = pkgs.callPackage ./bcm2835.nix { };
-          stb_image = pkgs.callPackage ./stb_image.nix { };
+          bcm2835 = pkgs.callPackage ./external/bcm2835.nix { };
+          stb_image = pkgs.callPackage ./external/stb_image.nix { };
         in
         {
           devShells.default = pkgs.mkShell {
             packages =
               [
-              pkgs.python312Packages.venvShellHook
-                # (pkgs.python312.withPackages (
-                #   ps: with ps; [
-                #     pillow
-                #     numpy
-                #     scipy
-                #     mypy-protobuf
-                #   ]
-                # ))
+                pkgs.python312Packages.venvShellHook
                 pkgs.cmake
                 pkgs.ninja
                 pkgs.pkg-config
@@ -51,26 +43,28 @@
                 else
                   [ ]
               );
-              venvDir = "venv";
+            venvDir = "venv";
           };
 
-          packages.default = pkgs.stdenv.mkDerivation {
-            name = "demo";
-            src = ./.;
-            nativeBuildInputs = [
-              pkgs.cmake
-              pkgs.ninja
-              pkgs.pkg-config
-            ];
-            buildInputs = [
-              pkgs.libgpiod
-              bcm2835
-              pkgs.protobuf
-              pkgs.grpc
-              pkgs.openssl
-              stb_image
-            ];
+          packages = {
+            default = pkgs.stdenv.mkDerivation {
+              name = "raspberry-pi-apps";
+              src = ./.;
+              nativeBuildInputs = [
+                pkgs.cmake
+                pkgs.ninja
+                pkgs.pkg-config
+              ];
+              buildInputs = [
+                pkgs.libgpiod
+                bcm2835
+                pkgs.protobuf
+                pkgs.grpc
+                pkgs.openssl
+                stb_image
+              ];
 
+            };
           };
         };
     };

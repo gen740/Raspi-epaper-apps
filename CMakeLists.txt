@@ -3,6 +3,5 @@ project(RaspiEpaper C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
-# add_subdirectory("lib")
 add_subdirectory("epaper")
 add_subdirectory("apps")
