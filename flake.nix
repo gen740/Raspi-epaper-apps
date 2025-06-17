@@ -7,12 +7,17 @@
   };
 
   outputs =
-    inputs@{ flake-parts, nixpkgs, ... }:
+    inputs@{
+      self,
+      flake-parts,
+      nixpkgs,
+      ...
+    }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = nixpkgs.lib.platforms.all;
 
       perSystem =
-        { pkgs, ... }:
+        { pkgs, system, ... }:
         let
           bcm2835 = pkgs.callPackage ./external/bcm2835.nix { };
           stb_image = pkgs.callPackage ./external/stb_image.nix { };
@@ -35,7 +40,7 @@
                 stb_image
               ]
               ++ (
-                if pkgs.stdenv.isLinux then
+                if system == "aarch64-linux" || system == "armv7l-linux" then
                   [
                     pkgs.libgpiod
                     bcm2835
@@ -55,15 +60,32 @@
                 pkgs.ninja
                 pkgs.pkg-config
               ];
-              buildInputs = [
-                pkgs.libgpiod
-                bcm2835
-                pkgs.protobuf
-                pkgs.grpc
-                pkgs.openssl
-                stb_image
-              ];
-
+              buildInputs =
+                [
+                  pkgs.protobuf
+                  pkgs.grpc
+                  pkgs.openssl
+                  stb_image
+                ]
+                ++ (
+                  if system == "aarch64-linux" || system == "armv7l-linux" then
+                    [
+                      pkgs.libgpiod
+                      bcm2835
+                    ]
+                  else
+                    [ ]
+                );
+            };
+          };
+          apps = {
+            dithering = {
+              type = "app";
+              program = "${self.packages.${system}.default}/bin/dithering";
+            };
+            image_client = {
+              type = "app";
+              program = "${self.packages.${system}.default}/bin/image_client";
             };
           };
         };

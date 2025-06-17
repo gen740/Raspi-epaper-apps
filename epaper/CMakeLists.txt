@@ -1,4 +1,4 @@
-add_library(epaper STATIC ${CMAKE_CURRENT_LIST_DIR}/src/epd_7in3e.cc)
+add_library(epaper STATIC ${CMAKE_CURRENT_LIST_DIR}/src/epd_7in3e.cc ${CMAKE_CURRENT_LIST_DIR}/src/stb_image.cc)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(gpiodcxx REQUIRED IMPORTED_TARGET libgpiodcxx)

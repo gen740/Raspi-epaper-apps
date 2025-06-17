@@ -12,6 +12,7 @@ Diagnostics:
     Add:
       - modernize*
       - bugprone*
+      - readability-braces-around-statements
 
     Remove:
       - bugprone-easily-swappable-parameters

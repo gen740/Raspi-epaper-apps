@@ -3,5 +3,8 @@ project(RaspiEpaper C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
-add_subdirectory("epaper")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  add_subdirectory("epaper")
+endif()
+
 add_subdirectory("apps")
