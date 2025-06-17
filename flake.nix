@@ -37,6 +37,8 @@
                 pkgs.protobuf
                 pkgs.openssl
                 pkgs.grpc
+                pkgs.qt6Packages.qtbase
+
                 stb_image
               ]
               ++ (
@@ -59,12 +61,14 @@
                 pkgs.cmake
                 pkgs.ninja
                 pkgs.pkg-config
+                pkgs.qt6Packages.wrapQtAppsHook
               ];
               buildInputs =
                 [
                   pkgs.protobuf
                   pkgs.grpc
                   pkgs.openssl
+                  pkgs.qt6Packages.qtbase
                   stb_image
                 ]
                 ++ (

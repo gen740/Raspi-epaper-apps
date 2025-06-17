@@ -4,9 +4,10 @@ set(CMAKE_CXX_STANDARD 23)
 
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
 set(app_linux "draw_box" "image_server" "simple")
-set(app_common "dithering" "image_client")
+set(app_common "dithering" "image_client" "gui_client")
 
 set(children "") # 初期化
 
@@ -15,6 +16,9 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 endif()
 
 list(APPEND children ${app_common})
+set(CMAKE_AUTOMOC ON) # moc を自動生成
+# set(CMAKE_AUTORCC ON) # (qrc を使う場合) rcc を自動生成
+# set(CMAKE_AUTOUIC ON)
 
 foreach(child ${children})
   if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${child})
@@ -26,11 +30,13 @@ foreach(child ${children})
 
       add_executable(${child} ${APP_C_SOURCES} ${APP_CXX_SOURCES})
 
-      target_link_libraries(${child} PRIVATE gRPC::grpc++ protobuf::libprotobuf)
+      target_link_libraries(${child} PRIVATE gRPC::grpc++ protobuf::libprotobuf
+                                             Qt6::Core Qt6::Gui Qt6::Widgets)
       if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         target_link_libraries(${child} PRIVATE epaper)
       endif()
-      target_include_directories(${child} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)
+      target_include_directories(${child}
+                                 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
       install(TARGETS ${child} RUNTIME DESTINATION bin)
     endif()
