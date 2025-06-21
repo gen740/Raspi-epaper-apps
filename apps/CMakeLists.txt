@@ -16,8 +16,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 endif()
 
 list(APPEND children ${app_common})
-set(CMAKE_AUTOMOC ON) # moc を自動生成
-# set(CMAKE_AUTORCC ON) # (qrc を使う場合) rcc を自動生成 set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
 
 foreach(child ${children})
   if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${child})
@@ -29,8 +28,9 @@ foreach(child ${children})
 
       add_executable(${child} ${APP_C_SOURCES} ${APP_CXX_SOURCES})
 
-      target_link_libraries(${child} PRIVATE gRPC::grpc++ protobuf::libprotobuf
-                                             Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent)
+      target_link_libraries(
+        ${child} PRIVATE gRPC::grpc++ protobuf::libprotobuf Qt6::Core Qt6::Gui
+                         Qt6::Widgets Qt6::Concurrent)
       if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         target_link_libraries(${child} PRIVATE epaper)
       endif()

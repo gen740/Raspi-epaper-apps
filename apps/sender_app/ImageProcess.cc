@@ -1,19 +1,11 @@
-#pragma once
-
+#include "ImageProcess.hh"
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <ranges>
 #include <vector>
 
-enum class EPDColor {
-  BLACK = 0x00,
-  WHITE = 0x01,
-  YELLOW = 0x02,
-  RED = 0x03,
-  BLUE = 0x05,
-  GREEN = 0x06,
-};
+namespace Processing {
 
 const std::map<EPDColor, std::array<uint8_t, 3>> PALETTE = {
     {EPDColor::BLACK, {0, 0, 0}},       //
@@ -24,8 +16,7 @@ const std::map<EPDColor, std::array<uint8_t, 3>> PALETTE = {
     {EPDColor::GREEN, {0, 255, 0}},     //
 };
 
-[[nodiscard]] inline auto closest_epd_color(const std::uint8_t *rgb)
-    -> EPDColor {
+[[nodiscard]] auto closest_epd_color(const std::uint8_t *rgb) -> EPDColor {
   double min_dist = std::numeric_limits<double>::max();
   EPDColor closest = EPDColor::BLACK;
   for (const auto &[color, val] : PALETTE) {
@@ -41,8 +32,7 @@ const std::map<EPDColor, std::array<uint8_t, 3>> PALETTE = {
   return closest;
 }
 
-inline auto nearest_color(const std::array<uint8_t, 3> &c)
-    -> std::array<uint8_t, 3> {
+auto nearest_color(const std::array<uint8_t, 3> &c) -> std::array<uint8_t, 3> {
   int best_d = 1 << 30;
   std::array<uint8_t, 3> best = {};
   for (const auto &p : PALETTE | std::views::values) {
@@ -55,9 +45,8 @@ inline auto nearest_color(const std::array<uint8_t, 3> &c)
   return best;
 }
 
-[[nodiscard]]
-inline auto rotate90(const std::vector<uint8_t> &src, std::size_t width,
-                     std::size_t height) -> std::vector<uint8_t> {
+auto rotate90(const std::vector<uint8_t> &src, std::size_t width,
+              std::size_t height) -> std::vector<uint8_t> {
   constexpr std::size_t BYTES_PER_PX = 3; // r g b
   if (src.size() != width * height * BYTES_PER_PX) {
     throw std::invalid_argument("buffer size mismatch");
@@ -83,7 +72,78 @@ inline auto rotate90(const std::vector<uint8_t> &src, std::size_t width,
   return dst;
 }
 
-inline void Atkinson(std::vector<uint8_t> &img, int w, int h) {
+void adjustImage(const std::vector<uint8_t> &src, std::vector<uint8_t> &dst,
+                 int w, int h, const ImageAdjustParams &p) {
+  const std::size_t expected = static_cast<std::size_t>(w) * h * 3;
+  if (src.size() != expected) {
+    return;
+  }
+  dst.resize(expected);
+
+  /* 1. 前計算 ---------------------------------------------- */
+  const float kExp = std::exp2(p.exposure);
+  const float kC = p.contrast;
+  const float kSat = p.saturation;
+  const float hHL = std::clamp(p.highlight, 0.f, 1.f);
+  const float hSH = std::clamp(p.shadow, 0.f, 1.f);
+
+  const float rT = 1.f + std::max(0.f, p.temperature) * 1.0f + p.tint * 0.05f;
+  const float gT = 1.f + p.tint * -0.10f;
+  const float bT = 1.f + std::max(0.f, -p.temperature) * 1.0f + p.tint * 0.05f;
+
+  auto luma = [](float r, float g, float b) {
+    return 0.2126f * r + 0.7152f * g + 0.0722f * b; // Rec.709
+  };
+  auto clip = [](float v) { return std::clamp(v, 0.f, 1.f); };
+
+  /* 2. ピクセル処理 ---------------------------------------- */
+  const int n = w * h;
+  for (int i = 0; i < n; ++i) {
+    const std::size_t idx = static_cast<std::size_t>(i) * 3;
+
+    /* 8-bit → 0–1 float */
+    float r = src[idx] / 255.f;
+    float g = src[idx + 1] / 255.f;
+    float b = src[idx + 2] / 255.f;
+
+    /* 露出 */
+    r *= kExp;
+    g *= kExp;
+    b *= kExp;
+
+    /* 色温度 + ティント */
+    r *= rT;
+    g *= gT;
+    b *= bT;
+
+    /* コントラスト (中心 0.5) */
+    r = (r - 0.5f) * kC + 0.5f;
+    g = (g - 0.5f) * kC + 0.5f;
+    b = (b - 0.5f) * kC + 0.5f;
+
+    /* ハイライト & シャドウ */
+    float y = luma(r, g, b);
+    float yAdj = (y < 0.5f) ? y + (0.5f - y) * hSH  // シャドウ持ち上げ
+                            : y - (y - 0.5f) * hHL; // ハイライト抑制
+    float f = (y == 0.f) ? 0.f : yAdj / y;
+    r *= f;
+    g *= f;
+    b *= f;
+
+    /* 彩度 */
+    float gray = luma(r, g, b);
+    r = gray + (r - gray) * kSat;
+    g = gray + (g - gray) * kSat;
+    b = gray + (b - gray) * kSat;
+
+    /* 書き戻し (0–1 → 8-bit) */
+    dst[idx] = static_cast<uint8_t>(std::round(clip(r) * 255.f));
+    dst[idx + 1] = static_cast<uint8_t>(std::round(clip(g) * 255.f));
+    dst[idx + 2] = static_cast<uint8_t>(std::round(clip(b) * 255.f));
+  }
+}
+
+void Atkinson(std::vector<uint8_t> &img, int w, int h) {
   auto idx = [&](int x, int y) { return 3 * (y * w + x); };
   for (int y = 0; y < h - 2; ++y) {
     for (int x = 0; x < w - 2; ++x) {
@@ -113,3 +173,5 @@ inline void Atkinson(std::vector<uint8_t> &img, int w, int h) {
     }
   }
 }
+
+}; // namespace Processing

@@ -1,9 +1,10 @@
+#pragma once
+
 #include "image_server.grpc.pb.h"
 #include <grpcpp/grpcpp.h>
 
-//---------------------------------------------------------------------
-//  gRPC image sender (blocking)
-//---------------------------------------------------------------------
+namespace GRPC {
+
 class ImageClient {
 public:
   explicit ImageClient(std::shared_ptr<grpc::Channel> channel)
@@ -25,3 +26,5 @@ public:
 private:
   std::unique_ptr<image_server::DataService::Stub> stub_;
 };
+
+}; // namespace GRPC
