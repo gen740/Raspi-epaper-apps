@@ -15,10 +15,9 @@ public:
 
 public slots:
   void setImage(const QImage &image);
-
   void adjustImage(const Processing::ImageAdjustParams &params);
-
   void sendImage();
+  void saveImage();
 
 protected:
   void paintEvent(QPaintEvent *ev) override;
@@ -34,6 +33,7 @@ private:
   std::vector<uint8_t> scaled_buffer_;
   std::vector<uint8_t> buffer_;
   QFuture<void> future_;
+  Processing::ImageAdjustParams params_ = {};
 };
 
 }; // namespace Application

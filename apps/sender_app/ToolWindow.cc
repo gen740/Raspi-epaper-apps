@@ -1,4 +1,5 @@
 #include "ToolWindow.hh"
+#include <QComboBox>
 
 namespace Application {
 
@@ -9,13 +10,54 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
   setFixedSize(500, 600);
 
   auto *lay = new QVBoxLayout(this);
-  auto label_minimum_width = 70;
+  auto label_minimum_width = 80;
   QLabel *label;
   QHBoxLayout *hl;
 
+  // Algorithm selection
+  auto *combo = new QComboBox(this);
+  combo->addItem("Atkinson",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::ATKINSON));
+  combo->addItem(
+      "Floyd-Steinberg",
+      QVariant::fromValue(Processing::DitheringAlgorithm::FLOYD_STEINBERG));
+  combo->addItem(
+      "Jarvis-Judice-Ninke",
+      QVariant::fromValue(Processing::DitheringAlgorithm::JARVIS_JUDICE_NINKE));
+  combo->addItem("Stucki",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::STUCKI));
+  combo->addItem("Burkes",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::BURKES));
+  combo->addItem("Sierra",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::SIERRA));
+  combo->addItem("Sierra2",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::SIERRA2));
+  combo->addItem(
+      "Sierra Lite",
+      QVariant::fromValue(Processing::DitheringAlgorithm::SIERRA_LITE));
+  combo->addItem("DBS",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::DBS));
+  combo->addItem("Ordered",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::ORDERED));
+  combo->addItem("Random",
+                 QVariant::fromValue(Processing::DitheringAlgorithm::RANDOM));
+  combo->addItem("Threshold", QVariant::fromValue(
+                                  Processing::DitheringAlgorithm::THRESHOLD));
+
+  connect(combo, &QComboBox::currentIndexChanged, this, [this, combo]() {
+    auto alg = combo->currentData().value<Processing::DitheringAlgorithm>();
+    if (alg != dithering_algorithm_) {
+      dithering_algorithm_ = alg;
+      params_.dithering_algorithm = dithering_algorithm_;
+      emit setParams(params_);
+    }
+  });
+
+  lay->addWidget(combo);
+
   // Exposure slider
   exposure_slider_ = new QSlider(Qt::Horizontal, this);
-  exposure_slider_->setRange(-200, 200);
+  exposure_slider_->setRange(-100, 100);
   exposure_slider_->setTickPosition(QSlider::TicksBelow);
   exposure_slider_->setTickInterval(40);
   exposure_slider_->setSingleStep(1);
@@ -34,7 +76,7 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
 
   // Contrast slider
   contrast_slider_ = new QSlider(Qt::Horizontal, this);
-  contrast_slider_->setRange(0, 300);
+  contrast_slider_->setRange(0, 200);
   contrast_slider_->setValue(100);
   contrast_slider_->setTickPosition(QSlider::TicksBelow);
   contrast_slider_->setTickInterval(50);
@@ -94,7 +136,7 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
 
   // Saturation slider
   saturation_slider_ = new QSlider(Qt::Horizontal, this);
-  saturation_slider_->setRange(0, 300);
+  saturation_slider_->setRange(0, 200);
   saturation_slider_->setValue(100);
   saturation_slider_->setTickPosition(QSlider::TicksBelow);
   saturation_slider_->setTickInterval(50);
@@ -155,17 +197,29 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
   // Send Botton
   auto *hl2 = new QHBoxLayout();
   auto *save_button = new QPushButton("Save", this);
+  auto *reset_button = new QPushButton("Reset", this);
   auto *send_button = new QPushButton("Send", this);
 
   hl2->addWidget(save_button);
   hl2->addWidget(send_button);
+  hl2->addWidget(reset_button);
 
   lay->addLayout(hl2);
 
   connect(save_button, &QPushButton::clicked, this,
           [this]() { emit saveImage(); });
-  connect(send_button, &QPushButton::clicked, this, [this]() {
-    emit sendImage(); // 現在のパラメータを送信
+  connect(send_button, &QPushButton::clicked, this,
+          [this]() { emit sendImage(); });
+  connect(reset_button, &QPushButton::clicked, this, [this]() {
+    params_ = {};
+    exposure_slider_->setValue(static_cast<int>(params_.exposure * 100));
+    contrast_slider_->setValue(static_cast<int>(params_.contrast * 100));
+    highlight_slider_->setValue(static_cast<int>(params_.highlight * 100));
+    shadow_slider_->setValue(static_cast<int>(params_.shadow * 100));
+    saturation_slider_->setValue(static_cast<int>(params_.saturation * 100));
+    temperature_slider_->setValue(static_cast<int>(params_.temperature * 100));
+    tint_slider_->setValue(static_cast<int>(params_.tint * 100));
+    emit setParams(params_);
   });
 }
 

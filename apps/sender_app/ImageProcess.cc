@@ -2,12 +2,13 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <random>
 #include <ranges>
 #include <vector>
 
 namespace Processing {
 
-const std::map<EPDColor, std::array<uint8_t, 3>> PALETTE = {
+const std::map<EPDColor, Pixel> PALETTE = {
     {EPDColor::BLACK, {0, 0, 0}},       //
     {EPDColor::WHITE, {255, 255, 255}}, //
     {EPDColor::YELLOW, {255, 255, 0}},  //
@@ -32,9 +33,9 @@ const std::map<EPDColor, std::array<uint8_t, 3>> PALETTE = {
   return closest;
 }
 
-auto nearest_color(const std::array<uint8_t, 3> &c) -> std::array<uint8_t, 3> {
+auto nearest_color(const Pixel &c) -> Pixel {
   int best_d = 1 << 30;
-  std::array<uint8_t, 3> best = {};
+  Pixel best = {};
   for (const auto &p : PALETTE | std::views::values) {
     int dr = int(c[0]) - p[0], dg = int(c[1]) - p[1], db = int(c[2]) - p[2];
     int d = dr * dr + dg * dg + db * db;
@@ -143,32 +144,341 @@ void adjustImage(const std::vector<uint8_t> &src, std::vector<uint8_t> &dst,
   }
 }
 
-void Atkinson(std::vector<uint8_t> &img, int w, int h) {
+struct Neighbor {
+  int dx;       // x offset from current pixel
+  int dy;       // y offset from current pixel
+  float weight; // integer weight (normalisation is done separately)
+};
+
+enum class Algorithm {
+  Atkinson,
+  FloydSteinberg,
+  JarvisJudiceNinke,
+  Stucki,
+  Burkes,
+};
+
+namespace detail {
+
+// ----  diffusion kernels  -----------------------------------
+constexpr std::array<Neighbor, 6> atkinson{{
+    {.dx = 1, .dy = 0, .weight = 1.f / 8},
+    {.dx = 2, .dy = 0, .weight = 1.f / 8},
+    {.dx = -1, .dy = 1, .weight = 1.f / 8},
+    {.dx = 0, .dy = 1, .weight = 1.f / 8},
+    {.dx = 1, .dy = 1, .weight = 1.f / 8},
+    {.dx = 0, .dy = 2, .weight = 1.f / 8},
+}};
+
+constexpr std::array<Neighbor, 4> floyd{{
+    {.dx = 1, .dy = 0, .weight = 7.f / 16},
+    {.dx = -1, .dy = 1, .weight = 3.f / 16},
+    {.dx = 0, .dy = 1, .weight = 5.f / 16},
+    {.dx = 1, .dy = 1, .weight = 1.f / 16},
+}};
+
+constexpr std::array<Neighbor, 12> jjn{{
+    {.dx = 1, .dy = 0, .weight = 7.f / 48},
+    {.dx = 2, .dy = 0, .weight = 5.f / 48},
+    {.dx = -2, .dy = 1, .weight = 3.f / 48},
+    {.dx = -1, .dy = 1, .weight = 5.f / 48},
+    {.dx = 0, .dy = 1, .weight = 7.f / 48},
+    {.dx = 1, .dy = 1, .weight = 5.f / 48},
+    {.dx = 2, .dy = 1, .weight = 3.f / 48},
+    {.dx = -2, .dy = 2, .weight = 1.f / 48},
+    {.dx = -1, .dy = 2, .weight = 3.f / 48},
+    {.dx = 0, .dy = 2, .weight = 5.f / 48},
+    {.dx = 1, .dy = 2, .weight = 3.f / 48},
+    {.dx = 2, .dy = 2, .weight = 1.f / 48},
+}};
+
+constexpr std::array<Neighbor, 12> stucki{{
+    {.dx = 1, .dy = 0, .weight = 8.f / 42},
+    {.dx = 2, .dy = 0, .weight = 4.f / 42},
+    {.dx = -2, .dy = 1, .weight = 2.f / 42},
+    {.dx = -1, .dy = 1, .weight = 4.f / 42},
+    {.dx = 0, .dy = 1, .weight = 8.f / 42},
+    {.dx = 1, .dy = 1, .weight = 4.f / 42},
+    {.dx = 2, .dy = 1, .weight = 2.f / 42},
+    {.dx = -2, .dy = 2, .weight = 1.f / 42},
+    {.dx = -1, .dy = 2, .weight = 2.f / 42},
+    {.dx = 0, .dy = 2, .weight = 4.f / 42},
+    {.dx = 1, .dy = 2, .weight = 2.f / 42},
+    {.dx = 2, .dy = 2, .weight = 1.f / 42},
+}};
+
+constexpr std::array<Neighbor, 7> burkes{{
+    {.dx = 1, .dy = 0, .weight = 8.f / 32},
+    {.dx = 2, .dy = 0, .weight = 4.f / 32},
+    {.dx = -2, .dy = 1, .weight = 2.f / 32},
+    {.dx = -1, .dy = 1, .weight = 4.f / 32},
+    {.dx = 0, .dy = 1, .weight = 8.f / 32},
+    {.dx = 1, .dy = 1, .weight = 4.f / 32},
+    {.dx = 2, .dy = 1, .weight = 2.f / 32},
+}};
+
+constexpr std::array<Neighbor, 10> sierra{{
+    {.dx = 1, .dy = 0, .weight = 5.f / 32},
+    {.dx = 2, .dy = 0, .weight = 3.f / 32},
+    {.dx = -2, .dy = 1, .weight = 2.f / 32},
+    {.dx = -1, .dy = 1, .weight = 4.f / 32},
+    {.dx = 0, .dy = 1, .weight = 5.f / 32},
+    {.dx = 1, .dy = 1, .weight = 4.f / 32},
+    {.dx = 2, .dy = 1, .weight = 2.f / 32},
+    {.dx = -1, .dy = 2, .weight = 2.f / 32},
+    {.dx = 0, .dy = 2, .weight = 3.f / 32},
+    {.dx = 1, .dy = 2, .weight = 2.f / 32},
+}};
+
+constexpr std::array<Neighbor, 7> sierra2{{
+    {.dx = 1, .dy = 0, .weight = 4.f / 16},
+    {.dx = 2, .dy = 0, .weight = 3.f / 16},
+    {.dx = -2, .dy = 1, .weight = 1.f / 16},
+    {.dx = -1, .dy = 1, .weight = 2.f / 16},
+    {.dx = 0, .dy = 1, .weight = 3.f / 16},
+    {.dx = 1, .dy = 1, .weight = 2.f / 16},
+    {.dx = 2, .dy = 1, .weight = 1.f / 16},
+}};
+
+constexpr std::array<Neighbor, 3> sierraLite{{
+    {.dx = 1, .dy = 0, .weight = 2.f / 4},
+    {.dx = -1, .dy = 1, .weight = 1.f / 4},
+    {.dx = 0, .dy = 1, .weight = 1.f / 4},
+}};
+
+// ----  generic diffusion engine  ----------------------------
+
+template <typename Pattern>
+void diffuse(std::vector<std::uint8_t> &img, int w, int h, const Pattern &pat) {
   auto idx = [&](int x, int y) { return 3 * (y * w + x); };
-  for (int y = 0; y < h - 2; ++y) {
-    for (int x = 0; x < w - 2; ++x) {
-      int i = idx(x, y);
-      std::array<uint8_t, 3> old = {img[i], img[i + 1], img[i + 2]};
-      std::array<uint8_t, 3> newc = nearest_color(old);
-      std::array<int, 3> err = {(int(old[0]) - newc[0]) / 8,
-                                (int(old[1]) - newc[1]) / 8,
-                                (int(old[2]) - newc[2]) / 8};
+
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      const int i = idx(x, y);
+      Pixel old{img[i], img[i + 1], img[i + 2]};
+      Pixel newc = nearest_color(old);
+      std::array<int, 3> err{int(old[0]) - newc[0], int(old[1]) - newc[1],
+                             int(old[2]) - newc[2]};
+
+      // write quantised pixel back
       for (int c = 0; c < 3; ++c) {
         img[i + c] = newc[c];
       }
 
-      const std::array<std::pair<int, int>, 6> offset = {
-          {{1, 0}, {2, 0}, {-1, 1}, {0, 1}, {1, 1}, {0, 2}}};
-      for (auto [dx, dy] : offset) {
-        int nx = x + dx, ny = y + dy;
+      // distribute the error
+      for (auto [dx, dy, wgt] : pat) {
+        const int nx = x + dx;
+        const int ny = y + dy;
         if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
           continue;
         }
-        int j = idx(nx, ny);
+        const int j = idx(nx, ny);
         for (int c = 0; c < 3; ++c) {
-          int val = int(img[j + c]) + err[c];
-          img[j + c] = std::clamp(val, 0, 255);
+          const int v = int(img[j + c]) + err[c] * wgt;
+          img[j + c] = std::clamp(v, 0, 255);
         }
+      }
+    }
+  }
+}
+
+} // namespace detail
+
+void Atkinson(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::atkinson);
+}
+
+void FloydSteinberg(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::floyd);
+}
+
+void JarvisJudiceNinke(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::jjn);
+}
+
+void Stucki(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::stucki);
+}
+
+void Burkes(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::burkes);
+}
+
+void Sierra(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::sierra);
+}
+
+void Sierra2(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::sierra2);
+}
+
+void SierraLite(std::vector<uint8_t> &img, int w, int h) {
+  detail::diffuse(img, w, h, detail::sierraLite);
+}
+
+void DBSDither(std::vector<std::uint8_t> &img, int w, int h) {
+  constexpr int maxPass = 6;
+  constexpr float threshold = 128.0f;
+  constexpr int R = 2;
+  constexpr float g5[5][5] = {{1, 4, 7, 4, 1},
+                              {4, 16, 26, 16, 4},
+                              {7, 26, 41, 26, 7},
+                              {4, 16, 26, 16, 4},
+                              {1, 4, 7, 4, 1}};
+  constexpr float gSum = 273.0f;
+  const int N = w * h;
+
+  std::array<std::vector<float>, 3> src;
+  std::array<std::vector<std::uint8_t>, 3> ht;
+  std::array<std::vector<float>, 3> resid;
+  for (int c = 0; c < 3; ++c) {
+    src[c].resize(N);
+    ht[c].resize(N);
+    resid[c].resize(N);
+  }
+
+  for (int i = 0; i < N; ++i) {
+    int p = 3 * i;
+    src[0][i] = static_cast<float>(img[p]);
+    src[1][i] = static_cast<float>(img[p + 1]);
+    src[2][i] = static_cast<float>(img[p + 2]);
+  }
+
+  std::array<float, 25> kernel{};
+  for (int dy = -R; dy <= R; ++dy) {
+    for (int dx = -R; dx <= R; ++dx) {
+      kernel[(dy + R) * 5 + (dx + R)] = g5[dy + R][dx + R] / gSum;
+    }
+  }
+
+  auto idx = [&](int x, int y) { return y * w + x; };
+
+  for (int c = 0; c < 3; ++c) {
+    for (int i = 0; i < N; ++i) {
+      ht[c][i] = src[c][i] >= threshold ? 255 : 0;
+    }
+    for (int y = 0; y < h; ++y) {
+      for (int x = 0; x < w; ++x) {
+        float s = 0.0f;
+        for (int dy = -R; dy <= R; ++dy) {
+          int yy = y + dy;
+          if (yy < 0 || yy >= h) {
+            continue;
+          }
+          for (int dx = -R; dx <= R; ++dx) {
+            int xx = x + dx;
+            if (xx < 0 || xx >= w) {
+              continue;
+            }
+            s += ht[c][idx(xx, yy)] * kernel[(dy + R) * 5 + (dx + R)];
+          }
+        }
+        resid[c][idx(x, y)] = s - src[c][idx(x, y)];
+      }
+    }
+
+    for (int pass = 0; pass < maxPass; ++pass) {
+      bool improved = false;
+      for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+          int q = idx(x, y);
+          int pix = ht[c][q];
+          int deltaPix = (pix == 0) ? 255 : -255;
+          float deltaE = 0.0f;
+          for (int dy = -R; dy <= R; ++dy) {
+            int yy = y + dy;
+            if (yy < 0 || yy >= h) {
+              continue;
+            }
+            for (int dx = -R; dx <= R; ++dx) {
+              int xx = x + dx;
+              if (xx < 0 || xx >= w) {
+                continue;
+              }
+              float kw = kernel[(dy + R) * 5 + (dx + R)];
+              if (kw == 0.0f) {
+                continue;
+              }
+              int p = idx(xx, yy);
+              float diff = deltaPix * kw;
+              deltaE += 2.0f * resid[c][p] * diff + diff * diff;
+            }
+          }
+          if (deltaE < -1e-3f) {
+            ht[c][q] = (pix == 0) ? 255 : 0;
+            for (int dy = -R; dy <= R; ++dy) {
+              int yy = y + dy;
+              if (yy < 0 || yy >= h) {
+                continue;
+              }
+              for (int dx = -R; dx <= R; ++dx) {
+                int xx = x + dx;
+                if (xx < 0 || xx >= w) {
+                  continue;
+                }
+                float kw = kernel[(dy + R) * 5 + (dx + R)];
+                if (kw == 0.0f) {
+                  continue;
+                }
+                int p = idx(xx, yy);
+                float diff = deltaPix * kw;
+                resid[c][p] += diff;
+              }
+            }
+            improved = true;
+          }
+        }
+      }
+      if (!improved) {
+        break;
+      }
+    }
+  }
+
+  for (int i = 0; i < N; ++i) {
+    img[3 * i] = ht[0][i];
+    img[3 * i + 1] = ht[1][i];
+    img[3 * i + 2] = ht[2][i];
+  }
+}
+void Ordered(std::vector<uint8_t> &img, int w, int h) {
+  static const std::array<std::array<int, 4>, 4> M = {
+      {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}};
+  auto idx = [&](int x, int y) { return 3 * (y * w + x); };
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      int threshold = ((M[y & 3][x & 3] * 16) + 8); // 0..255
+      int i = idx(x, y);
+      for (int c = 0; c < 3; ++c) {
+        img[i + c] = (img[i + c] > threshold) ? 255 : 0;
+      }
+    }
+  }
+}
+
+void Random(std::vector<uint8_t> &img, int w, int h) {
+  static thread_local std::mt19937 rng(std::random_device{}());
+  static thread_local std::uniform_int_distribution<int> dist(0, 255);
+  auto idx = [&](int x, int y) { return 3 * (y * w + x); };
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      int thr = dist(rng);
+      int i = idx(x, y);
+      for (int c = 0; c < 3; ++c) {
+        img[i + c] = (img[i + c] > thr) ? 255 : 0;
+      }
+    }
+  }
+}
+
+void Threshold(std::vector<uint8_t> &img, int w, int h) {
+  constexpr int T = 128;
+  auto idx = [&](int x, int y) { return 3 * (y * w + x); };
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      int i = idx(x, y);
+      for (int c = 0; c < 3; ++c) {
+        img[i + c] = (img[i + c] > T) ? 255 : 0;
       }
     }
   }

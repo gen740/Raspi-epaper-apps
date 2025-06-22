@@ -2,19 +2,37 @@
 #include "ImageProcess.hh"
 #include "grpc_client.hh"
 
+#include <QDir>
+#include <QFileDialog>
+#include <QImage>
+#include <QMessageBox>
 #include <QPainter>
+#include <QProcess>
+#include <QStringLiteral>
 
 namespace Application {
 
 using GRPC::ImageClient;
-using Processing::Atkinson;
 using Processing::closest_epd_color;
 using Processing::EPDColor;
+
+using Processing::Atkinson;
+using Processing::Burkes;
+using Processing::DBSDither;
+using Processing::FloydSteinberg;
+using Processing::JarvisJudiceNinke;
+using Processing::Ordered;
+using Processing::Random;
+using Processing::Sierra;
+using Processing::Sierra2;
+using Processing::SierraLite;
+using Processing::Stucki;
+using Processing::Threshold;
 
 ImagePreviewLabel::ImagePreviewLabel(QWidget *parent) : QLabel(parent) {
   setAlignment(Qt::AlignCenter);
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  setMinimumSize(480, 480);
+  setMinimumSize(800, 800);
 }
 
 void ImagePreviewLabel::setImage(const QImage &image) {
@@ -41,6 +59,7 @@ void ImagePreviewLabel::setImage(const QImage &image) {
     scaled_buffer_[i * 3 + 2] = static_cast<uint8_t>(qBlue(pix[i]));
   }
   buffer_ = scaled_buffer_;
+  Processing::adjustImage(scaled_buffer_, buffer_, width_, height_, params_);
   dither();
   update();
 }
@@ -50,6 +69,7 @@ void ImagePreviewLabel::adjustImage(
   if (scaled_buffer_.empty()) {
     return;
   }
+  params_ = params;
   Processing::adjustImage(scaled_buffer_, buffer_, width_, height_, params);
   dither();
   update();
@@ -79,6 +99,31 @@ void ImagePreviewLabel::sendImage() {
       QtConcurrent::run([p = std::move(payload), client] { client->Send(p); });
 }
 
+void ImagePreviewLabel::saveImage() {
+  auto kFilter = QStringLiteral(
+      "BMP (*.bmp);;PNG (*.png);;JPEG (*.jpg *.jpeg);;TIFF (*.tif *.tiff)");
+
+  const QString filePath = QFileDialog::getSaveFileName(
+      this, QStringLiteral("画像を保存"),
+      QDir::homePath() + QStringLiteral("/untitled.bmp"), kFilter);
+
+  if (filePath.isEmpty()) {
+    return;
+  }
+
+  if (!image_.save(filePath)) { // 保存失敗
+    QMessageBox::warning(
+        this, QStringLiteral("保存失敗"),
+        QStringLiteral("ファイル %1 を保存できませんでした。").arg(filePath));
+    return;
+  }
+
+  // Finder で該当ファイルを選択状態 (-R) で開く
+  QProcess::startDetached(QStringLiteral("open"),
+                          {QStringLiteral("-R"), filePath});
+  return;
+}
+
 void ImagePreviewLabel::paintEvent(QPaintEvent *ev) {
   QLabel::paintEvent(ev);
   if (original_image_.isNull()) {
@@ -93,8 +138,48 @@ void ImagePreviewLabel::paintEvent(QPaintEvent *ev) {
   p.drawImage(rect, image_);
 }
 
-void ImagePreviewLabel::dither() {
-  Atkinson(buffer_, width_, height_);
+void Application::ImagePreviewLabel::dither() {
+
+  switch (params_.dithering_algorithm) {
+  case Processing::DitheringAlgorithm::ATKINSON:
+    Atkinson(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::FLOYD_STEINBERG:
+    FloydSteinberg(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::JARVIS_JUDICE_NINKE:
+    JarvisJudiceNinke(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::STUCKI:
+    Stucki(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::BURKES:
+    Burkes(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::SIERRA:
+    Sierra(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::SIERRA2:
+    Sierra2(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::SIERRA_LITE:
+    SierraLite(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::DBS:
+    DBSDither(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::ORDERED:
+    Ordered(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::RANDOM:
+    Random(buffer_, width_, height_);
+    break;
+  case Processing::DitheringAlgorithm::THRESHOLD:
+    Threshold(buffer_, width_, height_);
+    break;
+  default:
+    break;
+  }
   image_ = QImage(buffer_.data(), width_, height_, QImage::Format_RGB888);
 };
 

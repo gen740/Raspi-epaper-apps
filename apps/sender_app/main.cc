@@ -41,6 +41,8 @@ public:
             image_preview_label_, &Application::ImagePreviewLabel::adjustImage);
     connect(tool_window_.get(), &Application::ToolWindow::sendImage,
             image_preview_label_, &Application::ImagePreviewLabel::sendImage);
+    connect(tool_window_.get(), &Application::ToolWindow::saveImage,
+            image_preview_label_, &Application::ImagePreviewLabel::saveImage);
   }
 
 private:

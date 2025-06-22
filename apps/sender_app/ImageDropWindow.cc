@@ -8,7 +8,7 @@ ImageDropLabel::ImageDropLabel(QWidget *parent) : QLabel(parent) {
   setStyleSheet("border: 2px dashed gray; padding: 10px;");
   setAcceptDrops(true);
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  setMinimumSize(480, 480);
+  setMinimumSize(800, 800);
 }
 
 void ImageDropLabel::dragEnterEvent(QDragEnterEvent *e) {

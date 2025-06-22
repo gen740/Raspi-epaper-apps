@@ -33,7 +33,9 @@ private:
   QSlider *temperature_slider_;
   QSlider *tint_slider_;
 
-  Processing::ImageAdjustParams params_ = {}; // 画像調整パラメータ
+  Processing::ImageAdjustParams params_ = {};
+  Processing::DitheringAlgorithm dithering_algorithm_ =
+      Processing::DitheringAlgorithm::ATKINSON;
 };
 
 } // namespace Application
