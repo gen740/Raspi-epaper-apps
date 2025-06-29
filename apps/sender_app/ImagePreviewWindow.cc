@@ -9,6 +9,7 @@
 #include <QPainter>
 #include <QProcess>
 #include <QStringLiteral>
+#include <format>
 
 namespace Application {
 
@@ -103,9 +104,18 @@ void ImagePreviewLabel::saveImage() {
   auto kFilter = QStringLiteral(
       "BMP (*.bmp);;PNG (*.png);;JPEG (*.jpg *.jpeg);;TIFF (*.tif *.tiff)");
 
+  auto image_dir = QDir::homePath() + "/eink_images";
+
+  if (!QDir(image_dir).exists()) {
+    QDir().mkpath(image_dir);
+  }
+  QDir dir(image_dir);
+  size_t file_count = dir.entryList(QDir::Files).count();
   const QString filePath = QFileDialog::getSaveFileName(
       this, QStringLiteral("画像を保存"),
-      QDir::homePath() + QStringLiteral("/untitled.bmp"), kFilter);
+      image_dir +
+          QString(std::format("/image_{:03d}", file_count + 1).c_str()),
+      kFilter);
 
   if (filePath.isEmpty()) {
     return;

@@ -18,13 +18,21 @@ endif()
 list(APPEND children ${app_common})
 set(CMAKE_AUTOMOC ON)
 
+file(GLOB APP_COMMON_C_SOURCES CONFIGURE_DEPENDS ${child}/*.c)
+file(GLOB APP_COMMON_CXX_SOURCES CONFIGURE_DEPENDS ${child}/*.cc
+     ${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc)
+add_library(common STATIC ${APP_COMMON_C_SOURCES} ${APP_COMMON_CXX_SOURCES})
+target_link_libraries(common PRIVATE gRPC::grpc++ protobuf::libprotobuf)
+target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
+
 foreach(child ${children})
   if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${child})
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${child}/main.c
        OR EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${child}/main.cc)
       message(STATUS "Found application: ${child}")
       file(GLOB APP_C_SOURCES CONFIGURE_DEPENDS ${child}/*.c)
-      file(GLOB APP_CXX_SOURCES CONFIGURE_DEPENDS ${child}/*.cc)
+      file(GLOB APP_CXX_SOURCES CONFIGURE_DEPENDS ${child}/*.cc
+           ${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc)
 
       add_executable(${child} ${APP_C_SOURCES} ${APP_CXX_SOURCES})
 
@@ -34,8 +42,7 @@ foreach(child ${children})
       if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         target_link_libraries(${child} PRIVATE epaper)
       endif()
-      target_include_directories(${child}
-                                 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)
+      target_include_directories(${child} PRIVATE common)
 
       install(TARGETS ${child} RUNTIME DESTINATION bin)
     endif()
