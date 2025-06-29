@@ -110,7 +110,7 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
   lay->addLayout(hl);
 
   connect(highlight_slider_, &QSlider::valueChanged, this, [this](int value) {
-    params_.highlight = static_cast<float>(value) / 100.0f; // ハイライト抑制
+    params_.highlight = -static_cast<float>(value) / 100.0f; // ハイライト抑制
     emit setParams(params_);
   });
 

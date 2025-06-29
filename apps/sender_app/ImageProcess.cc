@@ -1,6 +1,7 @@
 #include "ImageProcess.hh"
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <map>
 #include <random>
 #include <ranges>
@@ -73,74 +74,129 @@ auto rotate90(const std::vector<uint8_t> &src, std::size_t width,
   return dst;
 }
 
+void rgbToHsl(float r, float g, float b, float &h, float &s, float &l) {
+  float max_val = std::max({r, g, b});
+  float min_val = std::min({r, g, b});
+  l = (max_val + min_val) / 2.f;
+  if (max_val == min_val) {
+    h = s = 0;
+  } else {
+    float d = max_val - min_val;
+    s = l > 0.5f ? d / (2.f - max_val - min_val) : d / (max_val + min_val);
+    if (max_val == r) {
+      h = (g - b) / d + (g < b ? 6.f : 0.f);
+    } else if (max_val == g) {
+      h = (b - r) / d + 2.f;
+    } else {
+      h = (r - g) / d + 4.f;
+    }
+    h /= 6.f;
+  }
+}
+
+auto hueToRgb(float p, float q, float t) -> float {
+  if (t < 0.f) {
+    t += 1.f;
+  }
+  if (t > 1.f) {
+    t -= 1.f;
+  }
+  if (t < 1.f / 6.f) {
+    return p + (q - p) * 6.f * t;
+  }
+  if (t < 1.f / 2.f) {
+    return q;
+  }
+  if (t < 2.f / 3.f) {
+    return p + (q - p) * (2.f / 3.f - t) * 6.f;
+  }
+  return p;
+}
+
+void hslToRgb(float h, float s, float l, float &r, float &g, float &b) {
+  if (s == 0) {
+    r = g = b = l;
+  } else {
+    float q = l < 0.5f ? l * (1.f + s) : l + s - l * s;
+    float p = 2.f * l - q;
+    r = hueToRgb(p, q, h + 1.f / 3.f);
+    g = hueToRgb(p, q, h);
+    b = hueToRgb(p, q, h - 1.f / 3.f);
+  }
+}
+
 void adjustImage(const std::vector<uint8_t> &src, std::vector<uint8_t> &dst,
                  int w, int h, const ImageAdjustParams &p) {
-  const std::size_t expected = static_cast<std::size_t>(w) * h * 3;
-  if (src.size() != expected) {
-    return;
-  }
-  dst.resize(expected);
 
-  /* 1. 前計算 ---------------------------------------------- */
-  const float kExp = std::exp2(p.exposure);
-  const float kC = p.contrast;
-  const float kSat = p.saturation;
-  const float hHL = std::clamp(p.highlight, 0.f, 1.f);
-  const float hSH = std::clamp(p.shadow, 0.f, 1.f);
+  dst.resize(src.size());
+  const size_t num_pixels = static_cast<size_t>(w) * h;
 
-  const float rT = 1.f + std::max(0.f, p.temperature) * 1.0f + p.tint * 0.05f;
-  const float gT = 1.f + p.tint * -0.10f;
-  const float bT = 1.f + std::max(0.f, -p.temperature) * 1.0f + p.tint * 0.05f;
+  for (size_t i = 0; i < num_pixels; ++i) {
+    float r = src[i * 3 + 0] / 255.f;
+    float g = src[i * 3 + 1] / 255.f;
+    float b = src[i * 3 + 2] / 255.f;
 
-  auto luma = [](float r, float g, float b) {
-    return 0.2126f * r + 0.7152f * g + 0.0722f * b; // Rec.709
-  };
-  auto clip = [](float v) { return std::clamp(v, 0.f, 1.f); };
+    // 1. 露出 (Exposure)
+    float exposure_factor = std::pow(2.f, p.exposure);
+    r *= exposure_factor;
+    g *= exposure_factor;
+    b *= exposure_factor;
 
-  /* 2. ピクセル処理 ---------------------------------------- */
-  const int n = w * h;
-  for (int i = 0; i < n; ++i) {
-    const std::size_t idx = static_cast<std::size_t>(i) * 3;
+    // ★★★ 修正点 ★★★
+    // シャドウ・ハイライト処理の前に、値を[0, 1]の範囲にクランプする。
+    // これにより、1を超えた値がシャドウ計算式に入るのを防ぐ。
+    r = std::max(0.f, std::min(1.f, r));
+    g = std::max(0.f, std::min(1.f, g));
+    b = std::max(0.f, std::min(1.f, b));
 
-    /* 8-bit → 0–1 float */
-    float r = src[idx] / 255.f;
-    float g = src[idx + 1] / 255.f;
-    float b = src[idx + 2] / 255.f;
+    // 2. シャドウ (Shadow)
+    if (p.shadow != 0.f) {
+      float shadow_factor = std::pow(2.f, p.shadow);
+      r = 1.f - std::pow(1.f - r, shadow_factor);
+      g = 1.f - std::pow(1.f - g, shadow_factor);
+      b = 1.f - std::pow(1.f - b, shadow_factor);
+    }
 
-    /* 露出 */
-    r *= kExp;
-    g *= kExp;
-    b *= kExp;
+    // 3. ハイライト (Highlight)
+    if (p.highlight != 0.f) {
+      float highlight_factor = std::pow(2.f, -p.highlight);
+      r = std::pow(r, highlight_factor);
+      g = std::pow(g, highlight_factor);
+      b = std::pow(b, highlight_factor);
+    }
 
-    /* 色温度 + ティント */
-    r *= rT;
-    g *= gT;
-    b *= bT;
+    // 4. コントラスト (Contrast)
+    r = (r - 0.5f) * p.contrast + 0.5f;
+    g = (g - 0.5f) * p.contrast + 0.5f;
+    b = (b - 0.5f) * p.contrast + 0.5f;
 
-    /* コントラスト (中心 0.5) */
-    r = (r - 0.5f) * kC + 0.5f;
-    g = (g - 0.5f) * kC + 0.5f;
-    b = (b - 0.5f) * kC + 0.5f;
+    // 5. 彩度 (Saturation)
+    if (p.saturation != 1.f) {
+      r = std::max(0.f, std::min(1.f, r));
+      g = std::max(0.f, std::min(1.f, g));
+      b = std::max(0.f, std::min(1.f, b));
 
-    /* ハイライト & シャドウ */
-    float y = luma(r, g, b);
-    float yAdj = (y < 0.5f) ? y + (0.5f - y) * hSH  // シャドウ持ち上げ
-                            : y - (y - 0.5f) * hHL; // ハイライト抑制
-    float f = (y == 0.f) ? 0.f : yAdj / y;
-    r *= f;
-    g *= f;
-    b *= f;
+      float h_val, s_val, l_val;
+      rgbToHsl(r, g, b, h_val, s_val, l_val);
+      s_val *= p.saturation;
+      s_val = std::max(0.f, std::min(1.f, s_val));
+      hslToRgb(h_val, s_val, l_val, r, g, b);
+    }
 
-    /* 彩度 */
-    float gray = luma(r, g, b);
-    r = gray + (r - gray) * kSat;
-    g = gray + (g - gray) * kSat;
-    b = gray + (b - gray) * kSat;
+    // 6. 色温度 (Temperature) と 色合い (Tint)
+    r += p.temperature * 0.05f;
+    b -= p.temperature * 0.05f;
+    g -= p.tint * 0.05f;
 
-    /* 書き戻し (0–1 → 8-bit) */
-    dst[idx] = static_cast<uint8_t>(std::round(clip(r) * 255.f));
-    dst[idx + 1] = static_cast<uint8_t>(std::round(clip(g) * 255.f));
-    dst[idx + 2] = static_cast<uint8_t>(std::round(clip(b) * 255.f));
+    // 7. 最終的なクランプ
+    r = std::max(0.f, std::min(1.f, r));
+    g = std::max(0.f, std::min(1.f, g));
+    b = std::max(0.f, std::min(1.f, b));
+
+    // uint8_tに変換して格納
+    dst[i * 3 + 0] = static_cast<uint8_t>(r * 255.f + 0.5f);
+    dst[i * 3 + 1] = static_cast<uint8_t>(g * 255.f + 0.5f);
+    dst[i * 3 + 2] = static_cast<uint8_t>(b * 255.f + 0.5f);
   }
 }
 
