@@ -56,8 +56,7 @@ private:
 
 auto main() -> int {
   std::cout << "Starting..." << std::endl;
-  // auto epd7in3e_ = std::make_shared<Epaper::EPD7IN3E>();
-  std::shared_ptr<Epaper::EPD7IN3E> epd7in3e_ = nullptr;
+  auto epd7in3e_ = std::make_shared<Epaper::EPD7IN3E>();
   auto mutex_ = std::make_shared<std::mutex>();
 
   const std::string server_address("0.0.0.0:50051");
@@ -76,12 +75,7 @@ auto main() -> int {
   });
 
   while (true) {
-    const char *home = std::getenv("HOME");
-    if (home == nullptr) {
-      std::cerr << "HOME environment variable not set\n";
-      return 1;
-    }
-    const fs::path images_root = fs::path(home) / "images";
+    const fs::path images_root = "/home/gen/images";
 
     std::random_device rd;
     std::mt19937_64 rng(rd());
