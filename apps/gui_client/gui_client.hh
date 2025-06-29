@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "image_server.grpc.pb.h"
-#define STB_IMAGE_IMPLEMENTATION // Define this before including stb_image.h
 #include "stb/stb_image.h" // stb_image.h must be available; IMPLEMENTATION macro should be defined once in a .cc
 #include <grpcpp/grpcpp.h>
 

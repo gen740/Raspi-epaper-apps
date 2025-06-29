@@ -42,7 +42,7 @@ foreach(child ${children})
       if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         target_link_libraries(${child} PRIVATE epaper)
       endif()
-      target_include_directories(${child} PRIVATE common)
+      target_link_libraries(${child} PRIVATE common)
 
       install(TARGETS ${child} RUNTIME DESTINATION bin)
     endif()

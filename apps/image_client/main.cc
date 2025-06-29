@@ -1,6 +1,5 @@
 #include <grpcpp/grpcpp.h>
 
-#define STB_IMAGE_IMPLEMENTATION
 #include <array>
 #include <cmath>
 #include <cstddef>

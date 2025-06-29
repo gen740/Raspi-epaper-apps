@@ -4,10 +4,6 @@
 #include <ranges>
 #include <vector>
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define STB_IMAGE_RESIZE2_IMPLEMENTATION
-
 #include "color_palette.hh"
 #include "stb/stb_image.h"
 #include "stb/stb_image_resize2.h"
