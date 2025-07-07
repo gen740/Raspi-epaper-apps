@@ -96,7 +96,7 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
 
   // Highlight slider
   highlight_slider_ = new QSlider(Qt::Horizontal, this);
-  highlight_slider_->setRange(0, 100);
+  highlight_slider_->setRange(0, 200);
   highlight_slider_->setValue(0);
   highlight_slider_->setTickPosition(QSlider::TicksBelow);
   highlight_slider_->setTickInterval(10);
@@ -136,7 +136,7 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
 
   // Saturation slider
   saturation_slider_ = new QSlider(Qt::Horizontal, this);
-  saturation_slider_->setRange(0, 200);
+  saturation_slider_->setRange(0, 300);
   saturation_slider_->setValue(100);
   saturation_slider_->setTickPosition(QSlider::TicksBelow);
   saturation_slider_->setTickInterval(50);
@@ -156,7 +156,7 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
 
   // Temperature slider
   temperature_slider_ = new QSlider(Qt::Horizontal, this);
-  temperature_slider_->setRange(-100, 100);
+  temperature_slider_->setRange(-200, 200);
   temperature_slider_->setValue(0);
   temperature_slider_->setTickPosition(QSlider::TicksBelow);
   temperature_slider_->setTickInterval(20);
@@ -176,7 +176,7 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
 
   // Tint slider
   tint_slider_ = new QSlider(Qt::Horizontal, this);
-  tint_slider_->setRange(-100, 100);
+  tint_slider_->setRange(-200, 200);
   tint_slider_->setValue(0);
   tint_slider_->setTickPosition(QSlider::TicksBelow);
   tint_slider_->setTickInterval(20);

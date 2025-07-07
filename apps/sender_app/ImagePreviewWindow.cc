@@ -127,10 +127,6 @@ void ImagePreviewLabel::saveImage() {
         QStringLiteral("ファイル %1 を保存できませんでした。").arg(filePath));
     return;
   }
-
-  // Finder で該当ファイルを選択状態 (-R) で開く
-  QProcess::startDetached(QStringLiteral("open"),
-                          {QStringLiteral("-R"), filePath});
   return;
 }
 

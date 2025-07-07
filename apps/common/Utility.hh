@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cmath>
 #include <cstdint>
 #include <stb/stb_image.h>
 #include <stdexcept>
@@ -14,6 +13,33 @@ struct RGB {
   uint8_t r, g, b;
 };
 
+inline auto rotate90(const std::vector<uint8_t> &src, std::size_t width,
+                     std::size_t height) -> std::vector<uint8_t> {
+  constexpr std::size_t BYTES_PER_PX = 3; // r g b
+  if (src.size() != width * height * BYTES_PER_PX) {
+    throw std::invalid_argument("buffer size mismatch");
+  }
+
+  const std::size_t dstW = height; // 480 ← 800, etc.
+  const std::size_t dstH = width;
+  std::vector<uint8_t> dst(dstW * dstH * BYTES_PER_PX);
+
+  for (std::size_t y = 0; y < height; ++y) {
+    for (std::size_t x = 0; x < width; ++x) {
+      const std::size_t src_idx = (y * width + x) * BYTES_PER_PX;
+
+      const std::size_t dstX = y;             // 0‥(height-1)
+      const std::size_t dstY = width - 1 - x; // (width-1)‥0
+      const std::size_t dst_idx = (dstY * dstW + dstX) * BYTES_PER_PX;
+
+      dst[dst_idx + 0] = src[src_idx + 0]; // R
+      dst[dst_idx + 1] = src[src_idx + 1]; // G
+      dst[dst_idx + 2] = src[src_idx + 2]; // B
+    }
+  }
+  return dst;
+}
+
 inline auto load_bmp(const std::string &filename) -> std::vector<RGB> {
   int w, h, channels;
   auto *data = stbi_load(filename.c_str(), &w, &h, &channels, 3);
@@ -21,26 +47,28 @@ inline auto load_bmp(const std::string &filename) -> std::vector<RGB> {
     throw std::runtime_error("Failed to load image: " + filename);
   }
 
-  const bool rotate_ccw = (w == 480 && h == 800);
-  const int out_w = rotate_ccw ? h : w;
-  const int out_h = rotate_ccw ? w : h;
-
   std::vector<RGB> image;
-  image.reserve(static_cast<size_t>(out_w) * out_h);
+  image.resize(800 * 480);
 
-  if (!rotate_ccw) {
-    for (int i = 0; i < w * h; ++i) {
-      image.push_back({data[i * 3 + 0], data[i * 3 + 1], data[i * 3 + 2]});
-    }
-  } else {
-    for (int y = 0; y < out_h; ++y) {
-      for (int x = 0; x < out_w; ++x) {
-        const int src_x = y;
-        const int src_y = h - 1 - x;
-        const int idx = (src_y * w + src_x) * 3;
-        image.push_back({data[idx + 0], data[idx + 1], data[idx + 2]});
+  if (w == 480 && h == 800) {
+    const int dstW = h;
+    for (int y = 0; y < h; ++y) {
+      for (int x = 0; x < w; ++x) {
+        const int src_idx_base = (y * w + x) * 3;
+        const int dstX = y;
+        const int dstY = w - 1 - x;
+        const int dst_idx = dstY * dstW + dstX;
+        image[dst_idx] = {data[src_idx_base], data[src_idx_base + 1],
+                          data[src_idx_base + 2]};
       }
     }
+  } else if (w == 800 && h == 480) {
+    for (int i = 0; i < w * h; ++i) {
+      image[i] = {.r = data[i * 3], .g = data[i * 3 + 1], .b = data[i * 3 + 2]};
+    }
+  } else {
+    stbi_image_free(data);
+    throw std::invalid_argument("Image must be 480x800 or 800x480");
   }
 
   stbi_image_free(data);
