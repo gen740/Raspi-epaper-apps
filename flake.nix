@@ -33,9 +33,6 @@
                 pkgs.llvmPackages_20.libcxxClang
                 pkgs.cmake-format
                 pkgs.cmake-language-server
-                pkgs.protobuf
-                pkgs.openssl
-                pkgs.grpc
                 pkgs.capnproto
                 pkgs.qt6Packages.qtbase
 
@@ -65,9 +62,6 @@
               ];
               buildInputs =
                 [
-                  pkgs.protobuf
-                  pkgs.grpc
-                  pkgs.openssl
                   pkgs.capnproto
                   pkgs.qt6Packages.qtbase
                   stb_image

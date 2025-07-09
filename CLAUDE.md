@@ -40,8 +40,8 @@ cmake --build build
 ## Architecture
 
 ### Communication Protocol
-- Uses gRPC for client-server communication
-- Protocol defined in `apps/proto/image_server.proto`
+- Uses Cap'n Proto for client-server communication
+- Protocol defined in `apps/capnproto/image_service.capnp`
 - Server expects 800x480 pixel image data (192,000 bytes for 4-bit color)
 - Client converts and dithers images before transmission
 
@@ -52,13 +52,13 @@ cmake --build build
 - Supports 7 colors: Black, White, Yellow, Red, Blue, Green
 - Uses libgpiod for GPIO control on Raspberry Pi
 
-#### Image Server (`apps/raspi/image_server/`)
-- gRPC service listening on port 50051
+#### Image Server (`apps/raspi/image_server2/`)
+- Cap'n Proto service listening on port 50051
 - Accepts image data and displays on e-paper screen
 - Automatic slideshow from `/home/gen/images/` directory
 - Thread-safe display operations with mutex protection
 
-#### Client Application (`apps/mac/sender_app/`)
+#### Client Application (`apps/mac/sender_app2/`)
 - Qt6-based GUI with drag-and-drop image support
 - Real-time image preview and processing
 - Dithering and color palette conversion
@@ -71,7 +71,7 @@ cmake --build build
 
 ### Dependencies
 - **Qt6**: GUI framework (client only)
-- **gRPC/Protobuf**: Network communication
+- **Cap'n Proto**: Network communication
 - **libgpiod**: GPIO control (Raspberry Pi only)
 - **STB Image**: Image file loading
 - **BCM2835**: Hardware abstraction (Raspberry Pi only)
@@ -88,7 +88,7 @@ The build system automatically detects the target platform:
 2. Convert to target resolution (800x480)
 3. Apply dithering for e-paper display
 4. Convert to 4-bit color format
-5. Transmit via gRPC to server
+5. Transmit via Cap'n Proto to server
 
 ### GPIO Configuration
 E-paper display uses these GPIO pins on Raspberry Pi:

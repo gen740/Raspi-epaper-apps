@@ -1,6 +1,6 @@
 #include "ImagePreviewWindow.hh"
 #include "ImageProcess.hh"
-#include "grpc_client.hh"
+#include "capnp_client.hh"
 
 #include <QDir>
 #include <QFileDialog>
@@ -13,7 +13,7 @@
 
 namespace Application {
 
-using GRPC::ImageClient;
+using CAPNP::ImageClient;
 using Processing::closest_epd_color;
 using Processing::EPDColor;
 
@@ -94,8 +94,7 @@ void ImagePreviewLabel::sendImage() {
                       (static_cast<std::uint8_t>(c1) << 4));
   }
 
-  auto client = std::make_shared<ImageClient>(grpc::CreateChannel(
-      "192.168.1.101:50051", grpc::InsecureChannelCredentials()));
+  auto client = std::make_shared<ImageClient>("192.168.1.101:50051");
   future_ =
       QtConcurrent::run([p = std::move(payload), client] { client->Send(p); });
 }

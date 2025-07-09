@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nix build:*)",
+      "Bash(./result/bin/sender_app2:*)"
+    ],
+    "deny": []
+  }
+}

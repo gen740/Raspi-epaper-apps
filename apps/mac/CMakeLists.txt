@@ -1,5 +1,3 @@
-find_package(Protobuf CONFIG REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CAPNP REQUIRED capnp)
@@ -21,14 +19,10 @@ foreach(child ${MAC_APPS_DIRS})
     # Common libraries for all Mac apps
     target_link_libraries(${child_name} PRIVATE common Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Concurrent)
     
-    # Additional dependencies for specific apps
-    if(${child_name} STREQUAL "sender_app2")
-      target_link_libraries(${child_name} PRIVATE ${CAPNP_LIBRARIES} ${CAPNP_RPC_LIBRARIES} capnp_image_service)
-      target_include_directories(${child_name} PRIVATE ${CAPNP_INCLUDE_DIRS})
-      target_compile_options(${child_name} PRIVATE ${CAPNP_CFLAGS_OTHER})
-    else()
-      target_link_libraries(${child_name} PRIVATE gRPC::grpc++ protobuf::libprotobuf image_server_proto)
-    endif()
+    # Cap'n Proto dependencies for all apps
+    target_link_libraries(${child_name} PRIVATE ${CAPNP_LIBRARIES} ${CAPNP_RPC_LIBRARIES} capnp_image_service)
+    target_include_directories(${child_name} PRIVATE ${CAPNP_INCLUDE_DIRS})
+    target_compile_options(${child_name} PRIVATE ${CAPNP_CFLAGS_OTHER})
     
     target_compile_features(${child_name} PRIVATE cxx_std_23)
     install(TARGETS ${child_name} RUNTIME DESTINATION bin)
