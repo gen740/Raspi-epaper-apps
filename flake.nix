@@ -36,6 +36,7 @@
                 pkgs.protobuf
                 pkgs.openssl
                 pkgs.grpc
+                pkgs.capnproto
                 pkgs.qt6Packages.qtbase
 
                 stb_image
@@ -67,6 +68,7 @@
                   pkgs.protobuf
                   pkgs.grpc
                   pkgs.openssl
+                  pkgs.capnproto
                   pkgs.qt6Packages.qtbase
                   stb_image
                 ]
