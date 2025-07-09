@@ -3,6 +3,7 @@
 #include <capnp/serialize.h>
 #include "image_service.capnp.h"
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -18,7 +19,7 @@
 
 namespace fs = std::filesystem;
 
-bool image_changed_by_user = false;
+std::atomic<bool> image_changed_by_user{false};
 
 class ImageServiceImpl final : public ImageService::Server {
 public:
@@ -66,44 +67,43 @@ auto main() -> int {
   
   auto& waitScope = server.getWaitScope();
   
-  // Run server in a separate thread
-  auto server_thread = std::thread([&server, &waitScope]() {
-    std::cout << "Server listening on port 50051" << std::endl;
-    kj::NEVER_DONE.wait(waitScope);
+  std::cout << "Server listening on port 50051" << std::endl;
+  
+  // Run slideshow loop in a separate thread
+  auto slideshow_thread = std::thread([&epd7in3e_, &mutex_]() {
+    while (true) {
+      if (image_changed_by_user) {
+        image_changed_by_user = false;
+        std::this_thread::sleep_for(std::chrono::seconds(900));
+      } else {
+        const fs::path images_root = "/home/gen/images";
+        std::random_device rd;
+        std::mt19937_64 rng(rd());
+        std::cout << "Loading images from: " << images_root << std::endl;
+        std::vector<fs::directory_entry> files{};
+        for (auto const &file_entry : fs::directory_iterator(images_root)) {
+          if (!file_entry.is_regular_file()) {
+            continue;
+          }
+          files.push_back(file_entry);
+        }
+        std::uniform_int_distribution<std::size_t> dist(0, files.size() - 1);
+        const auto &chosen = files.at(dist(rng));
+        std::cout << "Chosen file: " << chosen.path() << std::endl;
+        try {
+          auto data = Apps::Common::load_bmp(chosen.path().string());
+          std::lock_guard<std::mutex> lock(*mutex_);
+          epd7in3e_->display(Apps::Common::convert_to_buffer(data).data());
+        } catch (const std::exception &e) {
+          std::cerr << "Error processing file " << chosen.path() << ": "
+                    << e.what() << '\n';
+        }
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(900));
+    }
   });
 
-  // Main slideshow loop
-  while (true) {
-    if (image_changed_by_user) {
-      image_changed_by_user = false;
-      std::this_thread::sleep_for(std::chrono::seconds(900));
-    } else {
-      const fs::path images_root = "/home/gen/images";
-      std::random_device rd;
-      std::mt19937_64 rng(rd());
-      std::cout << "Loading images from: " << images_root << std::endl;
-      std::vector<fs::directory_entry> files{};
-      for (auto const &file_entry : fs::directory_iterator(images_root)) {
-        if (!file_entry.is_regular_file()) {
-          continue;
-        }
-        files.push_back(file_entry);
-      }
-      std::uniform_int_distribution<std::size_t> dist(0, files.size() - 1);
-      const auto &chosen = files.at(dist(rng));
-      std::cout << "Chosen file: " << chosen.path() << std::endl;
-      try {
-        auto data = Apps::Common::load_bmp(chosen.path().string());
-        std::lock_guard<std::mutex> lock(*mutex_);
-        epd7in3e_->display(Apps::Common::convert_to_buffer(data).data());
-      } catch (const std::exception &e) {
-        std::cerr << "Error processing file " << chosen.path() << ": "
-                  << e.what() << '\n';
-      }
-    }
-    std::this_thread::sleep_for(std::chrono::seconds(900));
-  }
-
-  server_thread.join();
+  // Keep server running on main thread
+  kj::NEVER_DONE.wait(waitScope);
   return 0;
 }

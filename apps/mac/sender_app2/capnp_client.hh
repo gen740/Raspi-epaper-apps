@@ -6,22 +6,27 @@
 #include "image_service.capnp.h"
 #include <stdexcept>
 #include <vector>
+#include <memory>
 
 namespace CAPNP {
 
 class ImageClient {
 public:
-  explicit ImageClient(const std::string& address) : client_(address), cap_(client_.getMain<ImageService>()) {
+  explicit ImageClient(const std::string& address) : address_(address) {
   }
 
   void Send(const std::vector<std::uint8_t>& payload) {
-    auto request = cap_.sendImageRequest();
+    // Create client and cap on the same thread where we'll use them
+    capnp::EzRpcClient client(address_);
+    ImageService::Client cap = client.getMain<ImageService>();
+    
+    auto request = cap.sendImageRequest();
     
     auto imageData = request.getImageData();
     imageData.setPayload(kj::arrayPtr(payload.data(), payload.size()));
     
     auto promise = request.send();
-    auto response = promise.wait(client_.getWaitScope());
+    auto response = promise.wait(client.getWaitScope());
     
     if (response.getResponse().getStatus() != Status::OK) {
       throw std::runtime_error("Cap'n Proto failed: status != OK");
@@ -29,8 +34,7 @@ public:
   }
 
 private:
-  capnp::EzRpcClient client_;
-  ImageService::Client cap_;
+  std::string address_;
 };
 
 } // namespace CAPNP
