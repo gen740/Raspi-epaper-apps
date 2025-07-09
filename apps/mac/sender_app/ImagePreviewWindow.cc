@@ -190,5 +190,3 @@ void Application::ImagePreviewLabel::dither() {
 };
 
 }; // namespace Application
-
-#include "ImagePreviewWindow.moc"

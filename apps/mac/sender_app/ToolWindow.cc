@@ -224,5 +224,3 @@ ToolWindow::ToolWindow(QWidget *parent) : QWidget(parent) {
 }
 
 } // namespace Application
-
-#include "ToolWindow.moc"

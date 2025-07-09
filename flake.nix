@@ -26,7 +26,6 @@
           devShells.default = pkgs.mkShell {
             packages =
               [
-                pkgs.python312Packages.venvShellHook
                 pkgs.cmake
                 pkgs.ninja
                 pkgs.pkg-config

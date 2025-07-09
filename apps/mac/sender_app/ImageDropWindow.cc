@@ -71,5 +71,3 @@ void ImageDropLabel::mouseMoveEvent(QMouseEvent *ev) {
 }
 
 }; // namespace Application
-
-#include "ImageDropWindow.moc"
