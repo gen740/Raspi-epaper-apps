@@ -6,8 +6,8 @@ find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent)
 
-set(app_linux "draw_box" "image_server" "simple")
-set(app_common "dithering" "image_client" "gui_client" "sender_app")
+set(app_linux "image_server")
+set(app_common "sender_app")
 
 set(children "") # 初期化
 
