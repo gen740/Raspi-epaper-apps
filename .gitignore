@@ -9,3 +9,5 @@ build/
 *.bmp
 *.png
 *.jpg
+
+.direnv/
