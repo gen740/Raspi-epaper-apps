@@ -5,12 +5,13 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <print>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
-template <class T> class MemoryMapCast {
+namespace RPI4 {
+
+template <class T> class MemoryMap {
   void set_(uint32_t phys) {
     phys_ = phys & ~(getpagesize() - 1);
     offset_ = phys - phys_;
@@ -38,9 +39,9 @@ template <class T> class MemoryMapCast {
   }
 
 public:
-  MemoryMapCast() = default;
-  MemoryMapCast(uint32_t phys) { set_(phys); }
-  ~MemoryMapCast() { cleanup_(); }
+  MemoryMap() = default;
+  MemoryMap(uint32_t phys) { set_(phys); }
+  ~MemoryMap() { cleanup_(); }
 
   void reset(uint32_t phys) {
     cleanup_();
@@ -51,8 +52,22 @@ public:
     return reinterpret_cast<volatile T *>(base_ + offset_ / 4);
   }
 
+  auto operator*() -> volatile T & {
+    return *reinterpret_cast<volatile T *>(base_ + offset_ / 4);
+  }
+
+  operator bool() const { return base_ != nullptr; }
+
+  auto free() -> void {
+    cleanup_();
+    phys_ = 0;
+    offset_ = 0;
+  }
+
 private:
-  volatile uint32_t *base_;
+  volatile uint32_t *base_ = nullptr;
   uint32_t phys_{};
   uint32_t offset_{};
 };
+
+} // namespace RPI4

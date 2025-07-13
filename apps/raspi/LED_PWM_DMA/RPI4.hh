@@ -39,26 +39,16 @@ static consteval auto DMA_CS_PANIC_PRIORITY(auto val) -> uint32_t {
 /*! -------------------------------------------------
  * @brief DMA Control Block
  * -------------------------------------------------- */
-template <size_t N> struct alignas(32) DMACB {
+template <size_t N> struct DMACB {
   uint32_t ti;
   uint32_t src;
   uint32_t dst;
   uint32_t len;
   uint32_t stride;
   uint32_t next;
-  uint32_t pad[2];  // NOLINT
+  uint32_t pad[2];   // NOLINT
   uint32_t data[N]; // NOLINT
 };
-
-// struct alignas(32) DMACB {
-//   uint32_t ti;
-//   uint32_t src;
-//   uint32_t dst;
-//   uint32_t len;
-//   uint32_t stride;
-//   uint32_t next;
-//   uint32_t pad[2];  // NOLINT
-// };
 
 static constexpr uint32_t DMACB_TI_NO_WIDE_BURSTS = 1 << 26;
 static constexpr uint32_t DMACB_TI_SRC_INC = 1 << 8;
@@ -126,6 +116,12 @@ static constexpr uint32_t CLK_CTL_BUSY = 1 << 7;
 static constexpr uint32_t CLK_CTL_ENAB = 1 << 4;
 static consteval auto CLK_CTL_SRC(auto val) -> uint32_t {
   return (val & 0b1111) << 0;
+}
+static consteval auto CLK_DIV_DIVI(auto val) -> uint32_t {
+  return (static_cast<uint32_t>(val) & 0xFFF) << 12;
+}
+static consteval auto CLK_DIV_DIVF(auto val) -> uint32_t {
+  return (static_cast<uint32_t>(val) & 0xFFF) << 0;
 }
 
 }; // namespace RPI4

@@ -14,8 +14,13 @@
 #include <span>
 #include <vector>
 
+#include "MemoryMap.hh"
+
+namespace RPI4 {
+
 class Mailbox final {
 public:
+  // See https://github.com/raspberrypi/firmware/wiki/Mailbox-property-interface
   Mailbox() {
     fd_ = ::open("/dev/vcio", O_RDWR);
     if (fd_ < 0) {
@@ -123,3 +128,80 @@ inline void free_memory(uint32_t handle) {
     std::exit(EXIT_FAILURE);
   }
 }
+
+template <class T> class GPUMemoryAllocator {
+
+  uint32_t bus_addr_ = 0;
+  uint32_t handle_ = 0;
+  MemoryMap<T> memory_map_{};
+
+private:
+  auto allocate_() -> void {
+    handle_ = allocate_memory(sizeof(T), 0xC);
+    if (handle_ == 0) {
+      std::println(stderr, "Failed to allocate GPU memory for T.");
+      std::exit(EXIT_FAILURE);
+    }
+    bus_addr_ = lock_memory(handle_);
+    if (bus_addr_ == 0) {
+      std::println(stderr, "Failed to lock GPU memory for T.");
+      std::exit(EXIT_FAILURE);
+    }
+    memory_map_.reset(bus_addr_ & 0x3FFFFFFF);
+  }
+
+  auto free_() -> void {
+    if (bus_addr_ != 0) {
+      unlock_memory(handle_);
+    }
+    if (handle_ != 0) {
+      free_memory(handle_);
+    }
+    bus_addr_ = 0;
+    handle_ = 0;
+  }
+
+public:
+  GPUMemoryAllocator() { allocate_(); }
+  // GPUMemoryAllocator() = default;
+
+  ~GPUMemoryAllocator() { free_(); }
+
+  auto operator->() -> volatile T * {
+    if (bus_addr_ == 0) {
+      std::println(stderr, "GPU memory not allocated.");
+      std::exit(EXIT_FAILURE);
+    }
+    if (!memory_map_) {
+      std::println(stderr, "Memory map not initialized.");
+      std::exit(EXIT_FAILURE);
+    }
+    return memory_map_.operator->();
+  }
+
+  auto operator*() -> volatile T & {
+    if (bus_addr_ == 0) {
+      std::println(stderr, "GPU memory not allocated.");
+      std::exit(EXIT_FAILURE);
+    }
+    if (!memory_map_) {
+      std::println(stderr, "Memory map not initialized.");
+      std::exit(EXIT_FAILURE);
+    }
+    return memory_map_.operator*();
+  }
+
+  auto reset() -> void {
+    free_();
+    allocate_();
+  }
+
+  operator bool() const { return memory_map_; }
+
+  [[nodiscard]] auto get_bus_addr() const -> uint32_t { return bus_addr_; }
+  [[nodiscard]] auto get_phys_addr() const -> uint32_t {
+    return bus_addr_ & 0x3FFFFFFF;
+  }
+};
+
+}; // namespace RPI4
