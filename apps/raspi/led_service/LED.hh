@@ -38,8 +38,6 @@ public:
   auto initialize() -> void;
 
   auto set(std::span<RGB> rgbs) -> void;
-
-  auto start() -> void { start_dma_(); }
 };
 
 } // namespace LED
