@@ -86,7 +86,7 @@ public:
   }
 
   auto setLEDBasedonState() -> void {
-    std::array<LED::RGB, 7> colors; // All LEDs off
+    std::array<LED::RGB, 34> colors; // All LEDs off
     switch (state_) {
     case State::Red:
       colors.fill({255, 0, 0});
@@ -124,16 +124,19 @@ public:
     case State::FaintCandle:
       colors.fill({32, 19, 6}); // Faint candle color
       break;
-    case State::Gaming:
-      colors[0] = {.r = 255, .g = 0, .b = 0};     // Red
-      colors[1] = {.r = 0, .g = 255, .b = 0};     // Green
-      colors[2] = {.r = 0, .g = 0, .b = 255};     // Blue
-      colors[3] = {.r = 255, .g = 255, .b = 0};   // Yellow
-      colors[4] = {.r = 0, .g = 255, .b = 255};   // Cyan
-      colors[5] = {.r = 255, .g = 0, .b = 255};   // Magenta
-      colors[6] = {.r = 255, .g = 255, .b = 255}; // White
+    case State::Gaming: {
+      std::array<LED::RGB, 6> game_colors;
+      game_colors[0] = {.r = 255, .g = 0, .b = 0};   // Red
+      game_colors[1] = {.r = 125, .g = 125, .b = 0}; // Red
+      game_colors[2] = {.r = 0, .g = 255, .b = 0};   // Green
+      game_colors[3] = {.r = 0, .g = 125, .b = 125}; // Green
+      game_colors[4] = {.r = 0, .g = 0, .b = 255};   // Blue
+      game_colors[5] = {.r = 125, .g = 0, .b = 125}; // Blue
+      for (size_t i = 0; i < colors.size(); ++i) {
+        colors[i] = game_colors[i % game_colors.size()];
+      }
       setCallback([this, colors]() {
-        static std::array<LED::RGB, 7> colors_ = colors;
+        static std::array<LED::RGB, 34> colors_ = colors;
         static auto counter = 0ULL;
         counter++;
         if (counter % 8 == 0) { // Rotate every 10 calls
@@ -142,6 +145,7 @@ public:
         }
       });
       break;
+    }
     default:
       break; // Off state does nothing
     }
@@ -152,7 +156,7 @@ public:
     clearCallback();
     if (led_is_lit_) {
       std::println("Button 2 pressed, turning off LED.");
-      std::array<LED::RGB, 7> off_colors;
+      std::array<LED::RGB, 34> off_colors;
       off_colors.fill({0, 0, 0}); // All LEDs off
       led.set(off_colors);
       led_is_lit_ = false;

@@ -37,7 +37,7 @@ auto LED::initialize() -> void {
 auto LED::set(std::span<RGB> rgbs) -> void {
   dma_->chan[5].CS = 0;
   dma_->chan[5].TXFR_LEN = 0;
-  auto pattern = DataGenerator<2048>().generate(rgbs);
+  auto pattern = DataGenerator<3000>().generate(rgbs);
   std::ranges::copy(pattern, const_cast<volatile uint32_t *>(dma_cb_->data));
   dma_cb_->ti = (RPI4::DMACB_TI_NO_WIDE_BURSTS | RPI4::DMACB_TI_SRC_INC |
                  RPI4::DMACB_TI_DEST_DREQ | RPI4::DMACB_TI_PERMAP_PWM |
@@ -75,9 +75,9 @@ auto LED::set_pwm_clk_() -> void {
   while (clk_->CTL & RPI4::CLK_CTL_BUSY) {
     ;
   }
-  clk_->DIV = RPI4::CLK_CTL_PASSWD | RPI4::CLK_DIV_DIVI(23) |
-              RPI4::CLK_DIV_DIVF(0x1000 * 5 / 10);
-  ;
+  // clk_->DIV = RPI4::CLK_CTL_PASSWD | RPI4::CLK_DIV_DIVI(22) |
+  //             RPI4::CLK_DIV_DIVF(0x1000 * 5 / 10);
+  clk_->DIV = RPI4::CLK_CTL_PASSWD | RPI4::CLK_DIV_DIVI(22);
   clk_->CTL = RPI4::CLK_CTL_PASSWD | RPI4::CLK_CTL_SRC(1) | RPI4::CLK_CTL_ENAB;
   std::this_thread::sleep_for(10us);
   while (!(clk_->CTL & RPI4::CLK_CTL_BUSY)) {
