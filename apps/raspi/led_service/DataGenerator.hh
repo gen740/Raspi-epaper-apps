@@ -23,7 +23,7 @@ public:
       throw std::runtime_error("Too many LEDs for the given BITNUM.");
     }
     std::array<uint32_t, BITNUM> data{};
-    data.fill(0x00000000);
+    data.fill(0);
     size_t head_in_bits = 0;
 
     auto push_back = [&](bool bit) {

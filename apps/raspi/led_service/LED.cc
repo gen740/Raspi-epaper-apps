@@ -37,7 +37,7 @@ auto LED::initialize() -> void {
 auto LED::set(std::span<RGB> rgbs) -> void {
   dma_->chan[5].CS = 0;
   dma_->chan[5].TXFR_LEN = 0;
-  auto pattern = DataGenerator<3000>().generate(rgbs);
+  auto pattern = DataGenerator<3072>().generate(rgbs);
   std::ranges::copy(pattern, const_cast<volatile uint32_t *>(dma_cb_->data));
   dma_cb_->ti = (RPI4::DMACB_TI_NO_WIDE_BURSTS | RPI4::DMACB_TI_SRC_INC |
                  RPI4::DMACB_TI_DEST_DREQ | RPI4::DMACB_TI_PERMAP_PWM |
@@ -46,7 +46,21 @@ auto LED::set(std::span<RGB> rgbs) -> void {
   dma_cb_->dst = PWM_BUS_BASE + 0x18;
   dma_cb_->len = pattern.size() * sizeof(uint32_t);
   dma_cb_->stride = 0;
+  // dma_cb_->next = dma_cb2_.get_phys_addr();
   dma_cb_->next = 0;
+
+  // std::array<uint32_t, 4> zeros{};
+  // zeros.fill(0);
+  // std::ranges::copy(zeros, const_cast<volatile uint32_t *>(dma_cb2_->data));
+  // dma_cb2_->ti = (RPI4::DMACB_TI_NO_WIDE_BURSTS | RPI4::DMACB_TI_SRC_INC |
+  //                 RPI4::DMACB_TI_DEST_DREQ | RPI4::DMACB_TI_PERMAP_PWM |
+  //                 RPI4::DMACB_TI_WAIT_RESP);
+  // dma_cb2_->src = dma_cb2_.get_bus_addr() + sizeof(uint32_t);
+  // dma_cb2_->dst = PWM_BUS_BASE + 0x18;
+  // dma_cb2_->len = 8;
+  // dma_cb2_->stride = 0;
+  // dma_cb2_->next = dma_cb_.get_phys_addr(); // Loop back to the first block
+
   start_dma_();
 }
 
@@ -75,9 +89,9 @@ auto LED::set_pwm_clk_() -> void {
   while (clk_->CTL & RPI4::CLK_CTL_BUSY) {
     ;
   }
-  // clk_->DIV = RPI4::CLK_CTL_PASSWD | RPI4::CLK_DIV_DIVI(22) |
-  //             RPI4::CLK_DIV_DIVF(0x1000 * 5 / 10);
-  clk_->DIV = RPI4::CLK_CTL_PASSWD | RPI4::CLK_DIV_DIVI(22);
+  clk_->DIV = RPI4::CLK_CTL_PASSWD | RPI4::CLK_DIV_DIVI(22) |
+              RPI4::CLK_DIV_DIVF(0x1000 * 5 / 10);
+  // clk_->DIV = RPI4::CLK_CTL_PASSWD | RPI4::CLK_DIV_DIVI(22);
   clk_->CTL = RPI4::CLK_CTL_PASSWD | RPI4::CLK_CTL_SRC(1) | RPI4::CLK_CTL_ENAB;
   std::this_thread::sleep_for(10us);
   while (!(clk_->CTL & RPI4::CLK_CTL_BUSY)) {

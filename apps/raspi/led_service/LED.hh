@@ -20,7 +20,8 @@ class LED {
   RPI4::MemoryMap<RPI4::CLK> clk_;
   RPI4::MemoryMap<RPI4::DMA> dma_;
   RPI4::MemoryMap<RPI4::GPIO> gpio_;
-  RPI4::GPUMemoryAllocator<RPI4::DMACB<2048>> dma_cb_;
+  RPI4::GPUMemoryAllocator<RPI4::DMACB<4096>> dma_cb_;
+  // RPI4::GPUMemoryAllocator<RPI4::DMACB<32>> dma_cb2_;
 
 private:
   auto set_gpio_() -> void;
